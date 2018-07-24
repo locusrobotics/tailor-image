@@ -1,0 +1,3 @@
+distributions:  # TODO(pbovbel) read this in rosdistro?
+  - xenial
+  - bionic
