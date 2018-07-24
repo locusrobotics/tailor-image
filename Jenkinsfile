@@ -12,21 +12,19 @@ def num_to_keep = 10
 timestamps {
   stage("Configure build parameters") {
     node('master') {
-      cancelPreviousBuilds()
       sh 'env'
-
-      // Why is this so complicated...
-      def projectProperties = [
-        [$class: 'BuildDiscarderProperty',
-          strategy:
-            [$class: 'LogRotator',
-              artifactDaysToKeepStr: days_to_keep.toString(), artifactNumToKeepStr: num_to_keep.toString(),
-              daysToKeepStr: days_to_keep.toString(), numToKeepStr: num_to_keep.toString()]],
-        pipelineTriggers([
-            upstream(upstreamProjects: '../tailor-distro/' + env.BRANCH_NAME, threshold: hudson.model.Result.SUCCESS)
-        ]),
+      cancelPreviousBuilds()
+      def triggers = [
+        upstream(upstreamProjects: '../tailor-distro/' + env.BRANCH_NAME, threshold: hudson.model.Result.SUCCESS)
       ]
-      properties(projectProperties)
+      properties([
+        buildDiscarder(logRotator(
+          artifactDaysToKeepStr: days_to_keep.toString(), artifactNumToKeepStr: num_to_keep.toString(),
+          daysToKeepStr: days_to_keep.toString(), numToKeepStr: num_to_keep.toString()
+        )),
+        pipelineTriggers(triggers)
+      ])
+
 
       // TODO(pbovbel) detect if we should use a different bundle version
       // if env.CHANGE_TARGET.startsWith('release/') {
