@@ -27,7 +27,8 @@ RUN apt-get install -y python-all-dev python-pip python-setuptools python-wheel 
 RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 142D5F1683E1528B && \
 	  echo 'deb [arch=amd64] s3://s3.amazonaws.com/tailor-mirror/ubuntu xenial hotdog' >> /etc/apt/sources.list.d/locus.list && \
 		echo 'deb [arch=amd64] s3://s3.amazonaws.com/tailor-packages/ubuntu xenial hotdog' >> /etc/apt/sources.list.d/locus.list && \
- 		apt-get update && apt-get install -y locusrobotics-dev-hotdog python3-colcon-common-extensions python3-setuptools
+ 		apt-get update && apt-get dist-upgrade -y && \
+		apt-get install -y locusrobotics-dev-hotdog python3-colcon-common-extensions
 
 # TODO(pbovbel) rosdep install dependencies of /workspace/src
 
