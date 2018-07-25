@@ -3,6 +3,7 @@
 // Learn groovy: https://learnxinyminutes.com/docs/groovy/
 
 def docker_registry = '084758475884.dkr.ecr.us-east-1.amazonaws.com/tailor-image'
+def docker_registry_uri = 'https://' + docker_registry
 def docker_credentials = 'ecr:us-east-1:tailor_aws'
 
 def days_to_keep = 10

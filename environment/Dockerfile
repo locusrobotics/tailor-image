@@ -14,7 +14,7 @@ ENV AWS_SECRET_ACCESS_KEY ${AWS_SECRET_ACCESS_KEY}
 ENV DEBIAN_FRONTEND noninteractive
 ENV PYTHONUNBUFFERED 1
 
-RUN apt-get update && apt-get install --no-install-recommends -y locales sudo
+RUN apt-get update && apt-get install --no-install-recommends -y locales sudo ccache
 RUN locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
 
