@@ -43,7 +43,7 @@ timestamps {
 
         def test_image = docker.image(testImage(distribution))
         try {
-           docker.withRegistry(docker_registry_uri, docker_credentials) { test_image.pull() }
+          docker.withRegistry(docker_registry_uri, docker_credentials) { test_image.pull() }
         } catch (all) {
           echo "Unable to pull ${testImage(distribution)} as a build cache"
         }
