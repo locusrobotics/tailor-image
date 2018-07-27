@@ -45,29 +45,3 @@ RUN mkdir -p /home/tailor && \
 
 RUN ccache -M 5G && \
     ccache --set-config=cache_dir=/ccache
-
-# # TODO(pbovbel) read from rosdistro
-# CMD source /opt/locusrobotics/hotdog/dev/ros1/setup.bash && \
-# 	  TERM=dumb colcon build \
-# 			--base-paths /workspace/src \
-# 			--build-base /tmp/colcon_build \
-# 			--install-base /tmp/colcon_install \
-# 			--cmake-args \
-# 				-DCMAKE_CXX_FLAGS='-DNDEBUG -g -fext-numeric-literals' \
-# 				-DCMAKE_CXX_STANDARD='14' \
-# 				-DCMAKE_CXX_STANDARD_REQUIRED='ON' \
-# 				-DCMAKE_CXX_EXTENSIONS='ON' \
-# 				-DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-# 			--merge-install && \
-# 	  TERM=dumb colcon test \
-# 			--base-paths /workspace/src \
-# 			--build-base /tmp/colcon_build \
-# 			--install-base /tmp/colcon_install \
-# 			--test-result-base /workspace/test \
-# 			--cmake-args \
-# 				-DCMAKE_CXX_FLAGS='-DNDEBUG -g -fext-numeric-literals' \
-# 				-DCMAKE_CXX_STANDARD='14' \
-# 				-DCMAKE_CXX_STANDARD_REQUIRED='ON' \
-# 				-DCMAKE_CXX_EXTENSIONS='ON' \
-# 				-DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-# 			--merge-install
