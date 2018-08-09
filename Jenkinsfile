@@ -11,6 +11,8 @@ def num_to_keep = 10
 
 def testImage = { distribution -> docker_registry + ':jenkins-' + distribution + '-test-image' }
 
+def deploy = false
+
 pipeline {
   agent none
 
@@ -20,6 +22,7 @@ pipeline {
     string(name: 'release_label', defaultValue: 'hotdog')
     string(name: 'num_to_keep', defaultValue: '10')
     string(name: 'days_to_keep', defaultValue: '10')
+    booleanParam(name: 'deploy', defaultValue: false)
   }
 
   options {
@@ -36,7 +39,7 @@ pipeline {
           cancelPreviousBuilds()
 
           // TODO(pbovbel) straighten out how this works
-          deploy = env.BRANCH_NAME == 'master' ? true : false
+          deploy = env.BRANCH_NAME == 'master' ? params.deploy : false
 
           properties([
             buildDiscarder(logRotator(
