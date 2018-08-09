@@ -78,7 +78,9 @@ pipeline {
               "--build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY .")
           }
           docker.withRegistry(docker_registry_uri, docker_credentials) {
-            test_image.push()
+            if(deploy) {
+              test_image.push()
+            }
           }
         }
       }
