@@ -60,7 +60,7 @@ pipeline {
       agent any
       steps {
         script {
-          dir('tailor-upstream') {
+          dir('tailor-image') {
             checkout(scm)
           }
           def distribution = 'xenial'
