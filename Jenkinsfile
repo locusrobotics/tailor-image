@@ -9,7 +9,7 @@ def docker_credentials = 'ecr:us-east-1:tailor_aws'
 def days_to_keep = 10
 def num_to_keep = 10
 
-def testImage = { distribution -> docker_registry + ':jenkins-' + distribution + '-test-image' }
+def testImage = { distribution -> docker_registry + ':jenkins-' + distribution + '-test-image-' + env.BRANCH_NAME }
 
 def deploy = false
 
