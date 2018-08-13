@@ -48,7 +48,10 @@ pipeline {
             ))
           ])
 
-          copyArtifacts(projectName: "/ci/rosdistro/" + params.rosdistro_source)
+          copyArtifacts(
+            projectName: "/ci/rosdistro/" + params.rosdistro_source,
+            selector: upstream(fallbackToLastSuccessful: true),
+          )
           stash(name: 'rosdistro', includes: 'rosdistro/**')
         }
       }
