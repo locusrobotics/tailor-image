@@ -11,8 +11,6 @@ def num_to_keep = 10
 
 def testImage = { distribution -> docker_registry + ':jenkins-' + distribution + '-test-image-' + env.BRANCH_NAME }
 
-def deploy = false
-
 pipeline {
   agent none
 
@@ -35,9 +33,6 @@ pipeline {
       steps {
         script {
           sh('env')
-
-          // TODO(pbovbel) straighten out how this works
-          deploy = env.BRANCH_NAME == 'master' ? params.deploy : false
 
           properties([
             buildDiscarder(logRotator(
@@ -82,7 +77,7 @@ pipeline {
               "--build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY .")
           }
           docker.withRegistry(docker_registry_uri, docker_credentials) {
-            if(deploy) {
+            if(params.deploy) {
               test_image.push()
             }
           }
