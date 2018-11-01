@@ -9,7 +9,7 @@ def docker_credentials = 'ecr:us-east-1:tailor_aws'
 def days_to_keep = 10
 def num_to_keep = 10
 
-def testImage = { distribution -> docker_registry + ':tailor-image-' + distribution + '-test-image-' + env.BRANCH_NAME }
+def testImage = { distribution -> docker_registry + ':tailor-image-' + distribution + '-test-image' }
 
 pipeline {
   agent none
