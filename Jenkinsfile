@@ -63,6 +63,7 @@ pipeline {
             checkout(scm)
           }
           def distribution = 'xenial'
+          def test_image = docker.image(testImage(distribution))
 
           withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
             test_image = docker.build(testImage(distribution),
