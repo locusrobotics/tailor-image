@@ -71,6 +71,7 @@ pipeline {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
                   test_image = docker.build(testImage(distribution),
                     "-f tailor-image/environment/Dockerfile --no-cache " +
+                    "--build-arg UBUNTU_DISTRO=" + distribution + " " +
                     "--build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
                     "--build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY .")
                 }
