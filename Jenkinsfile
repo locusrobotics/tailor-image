@@ -11,6 +11,8 @@ def num_to_keep = 10
 
 def testImage = { distribution -> docker_registry + ':tailor-image-' + distribution + '-test-image' }
 
+List<String> distributions = ['xenial', 'bionic']
+
 pipeline {
   agent none
 
@@ -59,29 +61,31 @@ pipeline {
       agent any
       steps {
         script {
-          dir('tailor-image') {
-            checkout(scm)
-          }
-          def distribution = 'xenial'
-          def test_image = docker.image(testImage(distribution))
+          def jobs = distributions.collectEntries { distribution ->
+            [distribution, {node('master') {
+              try {
+                dir('tailor-image') {
+                  checkout(scm)
+                }
 
-          withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
-            test_image = docker.build(testImage(distribution),
-              "-f tailor-image/environment/Dockerfile --no-cache " +
-              "--build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
-              "--build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY .")
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
+                  test_image = docker.build(testImage(distribution),
+                    "-f tailor-image/environment/Dockerfile --no-cache " +
+                    "--build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
+                    "--build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY .")
+                }
+                docker.withRegistry(docker_registry_uri, docker_credentials) {
+                  if(params.deploy) {
+                    test_image.push()
+                  }
+                }
+              } finally {
+                deleteDir()
+                sh 'docker image prune -af --filter="until=3h" --filter="label=tailor" || true'
+              }
+            }}]
           }
-          docker.withRegistry(docker_registry_uri, docker_credentials) {
-            if(params.deploy) {
-              test_image.push()
-            }
-          }
-        }
-      }
-      post {
-        cleanup {
-          deleteDir()
-          sh 'docker image prune -af --filter="until=3h" --filter="label=tailor" || true'
+          parallel(jobs)
         }
       }
     }
