@@ -11,6 +11,7 @@ def num_to_keep = 10
 
 def testImage = { distribution -> docker_registry + ':tailor-image-' + distribution + '-test-image' }
 
+//TODO(gservin) read from rosdistro
 List<String> distributions = ['xenial', 'bionic']
 
 pipeline {
