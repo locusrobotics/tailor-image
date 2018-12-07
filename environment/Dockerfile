@@ -1,9 +1,11 @@
-# TODO(pbovbel) read from rosdistro
-FROM ubuntu:xenial
+ARG UBUNTU_DISTRO=xenial
+FROM ubuntu:${UBUNTU_DISTRO}
 
 LABEL tailor="test_image"
 
 SHELL ["/bin/bash", "-c"]
+
+ARG UBUNTU_DISTRO
 
 ARG AWS_ACCESS_KEY_ID
 ENV AWS_ACCESS_KEY_ID ${AWS_ACCESS_KEY_ID}
@@ -25,8 +27,8 @@ RUN apt-get install -y python-all-dev python-pip python-setuptools python-wheel 
 		apt-get update && apt-get install -y apt-boto-s3
 
 RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 142D5F1683E1528B && \
-	echo 'deb [arch=amd64] s3://s3.amazonaws.com/locus-tailor/hotdog/ubuntu xenial main' >> /etc/apt/sources.list && \
-	echo 'deb [arch=amd64] s3://s3.amazonaws.com/locus-tailor/hotdog/ubuntu xenial-mirror main' >> /etc/apt/sources.list && \
+	echo 'deb [arch=amd64] s3://s3.amazonaws.com/locus-tailor/hotdog/ubuntu '${UBUNTU_DISTRO}' main' >> /etc/apt/sources.list && \
+	echo 'deb [arch=amd64] s3://s3.amazonaws.com/locus-tailor/hotdog/ubuntu '${UBUNTU_DISTRO}'-mirror main' >> /etc/apt/sources.list && \
 	apt-get update && apt-get dist-upgrade -y && \
 	RTI_NC_LICENSE_ACCEPTED=yes apt-get install -y locusrobotics-dev-hotdog python3-colcon-common-extensions
 
