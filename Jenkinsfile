@@ -2,17 +2,15 @@
 
 // Learn groovy: https://learnxinyminutes.com/docs/groovy/
 
-def docker_registry = '084758475884.dkr.ecr.us-east-1.amazonaws.com/locus-tailor'
-def docker_registry_uri = 'https://' + docker_registry
 def docker_credentials = 'ecr:us-east-1:tailor_aws'
+def recipes_config = 'rosdistro/config/recipes.yaml'
 
 def days_to_keep = 10
 def num_to_keep = 10
 
-def testImage = { distribution -> docker_registry + ':tailor-image-' + distribution + '-test-image' }
+def testImage = { distribution, docker_registry -> docker_registry - "https://" + ':tailor-image-' + distribution + '-test-image' }
 
-//TODO(gservin) read from rosdistro
-List<String> distributions = ['xenial', 'bionic']
+def distributions = []
 
 pipeline {
   agent none
@@ -23,6 +21,7 @@ pipeline {
     string(name: 'release_label', defaultValue: 'hotdog')
     string(name: 'num_to_keep', defaultValue: '10')
     string(name: 'days_to_keep', defaultValue: '10')
+    string(name: 'docker_registry')
     booleanParam(name: 'deploy', defaultValue: false)
   }
 
@@ -48,6 +47,10 @@ pipeline {
             projectName: params.rosdistro_job,
             selector: upstream(fallbackToLastSuccessful: true),
           )
+
+          distributions = readYaml(file: recipes_config)['os'].collect {
+            os, distribution -> distribution }.flatten()
+
           stash(name: 'rosdistro', includes: 'rosdistro/**')
         }
       }
@@ -70,13 +73,13 @@ pipeline {
                 }
 
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
-                  test_image = docker.build(testImage(distribution),
+                  test_image = docker.build(testImage(params.docker_registry, distribution),
                     "-f tailor-image/environment/Dockerfile --no-cache " +
                     "--build-arg UBUNTU_DISTRO=" + distribution + " " +
                     "--build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
                     "--build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY .")
                 }
-                docker.withRegistry(docker_registry_uri, docker_credentials) {
+                docker.withRegistry(params.docker_registry, docker_credentials) {
                   if(params.deploy) {
                     test_image.push()
                   }
