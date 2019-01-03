@@ -74,7 +74,7 @@ pipeline {
                 }
 
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
-                  test_image = docker.build(testImage(params.docker_registry, distribution),
+                  test_image = docker.build(testImage(distribution, params.docker_registry),
                     "-f tailor-image/environment/Dockerfile --no-cache " +
                     "--build-arg OS_VERSION=" + distribution + " " +
                     "--build-arg APT_REPO=" + (params.apt_repo - 's3://') + " " +
