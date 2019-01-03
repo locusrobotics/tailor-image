@@ -22,6 +22,7 @@ pipeline {
     string(name: 'num_to_keep', defaultValue: '10')
     string(name: 'days_to_keep', defaultValue: '10')
     string(name: 'docker_registry')
+    string(name: 'apt_repo')
     booleanParam(name: 'deploy', defaultValue: false)
   }
 
@@ -75,7 +76,8 @@ pipeline {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
                   test_image = docker.build(testImage(params.docker_registry, distribution),
                     "-f tailor-image/environment/Dockerfile --no-cache " +
-                    "--build-arg UBUNTU_DISTRO=" + distribution + " " +
+                    "--build-arg OS_VERSION=" + distribution + " " +
+                    "--build-arg APT_REPO=" + (params.apt_repo - 's3://') + " " +
                     "--build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
                     "--build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY .")
                 }
