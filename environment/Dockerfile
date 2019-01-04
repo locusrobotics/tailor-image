@@ -13,6 +13,7 @@ ENV AWS_SECRET_ACCESS_KEY ${AWS_SECRET_ACCESS_KEY}
 ARG OS_NAME
 ARG OS_VERSION
 ARG APT_REPO
+ARG ORGANIZATION
 
 SHELL ["/bin/bash", "-c"]
 
@@ -33,7 +34,7 @@ RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 142D5F1683E1528B &&
 	echo "deb [arch=amd64] s3://s3.amazonaws.com/$APT_REPO/hotdog/$OS_NAME $OS_VERSION main" >> /etc/apt/sources.list && \
 	echo "deb [arch=amd64] s3://s3.amazonaws.com/$APT_REPO/hotdog/$OS_NAME $OS_VERSION-mirror main" >> /etc/apt/sources.list && \
 	apt-get update && apt-get dist-upgrade -y && \
-	RTI_NC_LICENSE_ACCEPTED=yes apt-get install -y locusrobotics-dev-hotdog python3-colcon-common-extensions
+	RTI_NC_LICENSE_ACCEPTED=yes apt-get install -y $ORGANIZATION-dev-hotdog python3-colcon-common-extensions
 
 # TODO(pbovbel) colcon fails with older setuptools
 RUN apt-get install -y python3-pip && \

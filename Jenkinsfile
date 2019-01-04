@@ -3,7 +3,7 @@
 // Learn groovy: https://learnxinyminutes.com/docs/groovy/
 
 def docker_credentials = 'ecr:us-east-1:tailor_aws'
-def recipes_config = 'rosdistro/config/recipes.yaml'
+def recipes_yaml = 'rosdistro/config/recipes.yaml'
 
 def days_to_keep = 10
 def num_to_keep = 10
@@ -11,6 +11,7 @@ def num_to_keep = 10
 def testImage = { distribution, docker_registry -> docker_registry - "https://" + ':tailor-image-' + distribution + '-test-image' }
 
 def distributions = []
+def organization = null
 
 pipeline {
   agent none
@@ -49,7 +50,10 @@ pipeline {
             selector: upstream(fallbackToLastSuccessful: true),
           )
 
-          distributions = readYaml(file: recipes_config)['os'].collect {
+          // (pbovbel) Read configuration from rosdistro. This should probably happen in some kind of Python
+          def recipes_config = readYaml(file: recipes_yaml)
+          organization = recipes_config['common']['organization']
+          distributions = recipes_config['os'].collect {
             os, distribution -> distribution }.flatten()
 
           stash(name: 'rosdistro', includes: 'rosdistro/**')
@@ -76,8 +80,9 @@ pipeline {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
                   test_image = docker.build(testImage(distribution, params.docker_registry),
                     "-f tailor-image/environment/Dockerfile --no-cache " +
-                    "--build-arg OS_VERSION=" + distribution + " " +
-                    "--build-arg APT_REPO=" + (params.apt_repo - 's3://') + " " +
+                    "--build-arg OS_VERSION=$distribution " +
+                    "--build-arg APT_REPO=${params.apt_repo - 's3://'} " +
+                    "--build-arg ORGANIZATION=$organization " +
                     "--build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
                     "--build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY .")
                 }
