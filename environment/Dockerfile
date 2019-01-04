@@ -10,6 +10,8 @@ ENV AWS_ACCESS_KEY_ID ${AWS_ACCESS_KEY_ID}
 ARG AWS_SECRET_ACCESS_KEY
 ENV AWS_SECRET_ACCESS_KEY ${AWS_SECRET_ACCESS_KEY}
 
+ARG OS_NAME
+ARG OS_VERSION
 ARG APT_REPO
 
 SHELL ["/bin/bash", "-c"]
@@ -28,8 +30,8 @@ RUN apt-get install -y python-all-dev python-pip python-setuptools python-wheel 
 		apt-get update && apt-get install -y apt-boto-s3
 
 RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 142D5F1683E1528B && \
-	echo 'deb [arch=amd64] s3://s3.amazonaws.com/${APT_REPO}/hotdog/${OS_NAME} ${OS_VERSION} main' >> /etc/apt/sources.list && \
-	echo 'deb [arch=amd64] s3://s3.amazonaws.com/${APT_REPO}/hotdog/${OS_NAME} ${OS_VERSION}-mirror main' >> /etc/apt/sources.list && \
+	echo "deb [arch=amd64] s3://s3.amazonaws.com/$APT_REPO/hotdog/$OS_NAME $OS_VERSION main" >> /etc/apt/sources.list && \
+	echo "deb [arch=amd64] s3://s3.amazonaws.com/$APT_REPO/hotdog/$OS_NAME $OS_VERSION-mirror main" >> /etc/apt/sources.list && \
 	apt-get update && apt-get dist-upgrade -y && \
 	RTI_NC_LICENSE_ACCEPTED=yes apt-get install -y locusrobotics-dev-hotdog python3-colcon-common-extensions
 
@@ -45,6 +47,3 @@ USER tailor
 
 RUN mkdir -p /home/tailor && \
     usermod -d /home/tailor tailor
-
-RUN ccache -M 5G && \
-    ccache --set-config=cache_dir=/ccache
