@@ -67,11 +67,11 @@ pipeline {
     }
 
     stage("Create test image") {
-      agent any
+      agent none
       steps {
         script {
           def jobs = distributions.collectEntries { distribution ->
-            [distribution, {node('master') {
+            [distribution, { node {
               try {
                 dir('tailor-image') {
                   checkout(scm)
