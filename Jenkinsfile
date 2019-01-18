@@ -5,10 +5,7 @@
 def docker_credentials = 'ecr:us-east-1:tailor_aws'
 def recipes_yaml = 'rosdistro/config/recipes.yaml'
 
-def days_to_keep = 10
-def num_to_keep = 10
-
-def testImage = { distribution, docker_registry -> docker_registry - "https://" + ':tailor-image-' + distribution + '-test-image' }
+def testImage = { distribution, release_label, docker_registry -> docker_registry - "https://" + ':tailor-image-test-' + distribution + '-' + release_label }
 
 def distributions = []
 def organization = null
@@ -78,11 +75,12 @@ pipeline {
                 }
 
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
-                  test_image = docker.build(testImage(distribution, params.docker_registry),
+                  test_image = docker.build(testImage(distribution, params.release_label, params.docker_registry),
                     "-f tailor-image/environment/Dockerfile --no-cache " +
                     "--build-arg OS_NAME=ubuntu " +
                     "--build-arg OS_VERSION=$distribution " +
                     "--build-arg APT_REPO=${params.apt_repo - 's3://'} " +
+                    "--build-arg RELEASE_TRACK=$params.release_track " +
                     "--build-arg ORGANIZATION=$organization " +
                     "--build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
                     "--build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY .")
