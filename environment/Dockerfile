@@ -41,7 +41,10 @@ RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 142D5F1683E1528B &&
 RUN apt-get install -y python3-pip && \
 		python3 -m pip install setuptools -U
 
-# TODO(pbovbel) rosdep install dependencies of /workspace/src
+# Inject the rosdep definitions from source
+RUN rosdep init
+RUN echo "yaml file:///etc/ros/rosdep/rosdep.yaml" > /etc/ros/rosdep/sources.list.d/10-tailor.list
+COPY rosdistro/rosdep/rosdep.yaml /etc/ros/rosdep/rosdep.yaml
 
 # Create non-root user
 RUN groupadd -r tailor && useradd -ms /bin/bash -g tailor -G sudo tailor
