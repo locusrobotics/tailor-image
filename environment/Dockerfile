@@ -15,6 +15,8 @@ ARG OS_VERSION
 ARG APT_REPO
 ARG RELEASE_TRACK
 ARG ORGANIZATION
+ARG FLAVOUR
+ENV BUNDLE_ROOT /opt/${ORGANIZATION}/${FLAVOUR}
 
 SHELL ["/bin/bash", "-c"]
 
@@ -37,7 +39,7 @@ RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 142D5F1683E1528B &&
 	echo "deb [arch=amd64] s3://s3.amazonaws.com/$APT_REPO/$RELEASE_TRACK/$OS_NAME $OS_VERSION-mirror main" >> /etc/apt/sources.list && \
 	apt-get update && apt-get dist-upgrade -y && \
 	RTI_NC_LICENSE_ACCEPTED=yes apt-get install -y \
-		$ORGANIZATION-dev-$RELEASE_TRACK \
+		$ORGANIZATION-$FLAVOUR-$RELEASE_TRACK \
 		python3-colcon-common-extensions \
 		cmake
 
