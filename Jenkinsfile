@@ -73,6 +73,7 @@ pipeline {
                 dir('tailor-image') {
                   checkout(scm)
                 }
+                unstash(name: 'rosdistro')
 
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
                   test_image = docker.build(testImage(distribution, params.release_label, params.docker_registry),
