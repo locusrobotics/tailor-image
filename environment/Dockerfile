@@ -31,11 +31,15 @@ RUN apt-get install -y python-all-dev python-pip python-setuptools python-wheel 
 		echo "deb http://dl.bintray.com/lucidsoftware/apt/ lucid main" >> /etc/apt/sources.list && \
 		apt-get update && apt-get install -y apt-boto-s3
 
+# pending https://github.com/colcon/colcon-cmake/issues/34
 RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 142D5F1683E1528B && \
 	echo "deb [arch=amd64] s3://s3.amazonaws.com/$APT_REPO/$RELEASE_TRACK/$OS_NAME $OS_VERSION main" >> /etc/apt/sources.list && \
 	echo "deb [arch=amd64] s3://s3.amazonaws.com/$APT_REPO/$RELEASE_TRACK/$OS_NAME $OS_VERSION-mirror main" >> /etc/apt/sources.list && \
 	apt-get update && apt-get dist-upgrade -y && \
-	RTI_NC_LICENSE_ACCEPTED=yes apt-get install -y $ORGANIZATION-dev-$RELEASE_TRACK python3-colcon-common-extensions
+	RTI_NC_LICENSE_ACCEPTED=yes apt-get install -y \
+		$ORGANIZATION-dev-$RELEASE_TRACK \
+		python3-colcon-common-extensions \
+		cmake
 
 # TODO(pbovbel) colcon fails with older setuptools
 RUN apt-get install -y python3-pip && \
@@ -48,8 +52,8 @@ COPY rosdistro/rosdep/rosdep.yaml /etc/ros/rosdep/rosdep.yaml
 
 # Create non-root user
 RUN groupadd -r tailor && useradd -ms /bin/bash -g tailor -G sudo tailor
+RUN echo "tailor ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers
 USER tailor
-
 RUN mkdir -p /home/tailor && \
     usermod -d /home/tailor tailor
 
