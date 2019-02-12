@@ -9,6 +9,7 @@ def testImage = { distribution, release_label, docker_registry -> docker_registr
 
 def distributions = []
 def organization = null
+def testing_flavour = null
 
 pipeline {
   agent none
@@ -50,6 +51,7 @@ pipeline {
           // (pbovbel) Read configuration from rosdistro. This should probably happen in some kind of Python
           def recipes_config = readYaml(file: recipes_yaml)
           organization = recipes_config['common']['organization']
+          testing_flavour = recipes_config['common']['testing_flavour']
           distributions = recipes_config['os'].collect {
             os, distribution -> distribution }.flatten()
 
@@ -83,6 +85,7 @@ pipeline {
                     "--build-arg APT_REPO=${params.apt_repo - 's3://'} " +
                     "--build-arg RELEASE_TRACK=$params.release_track " +
                     "--build-arg ORGANIZATION=$organization " +
+                    "--build-arg FLAVOUR=$testing_flavour " +
                     "--build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
                     "--build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY .")
                 }
