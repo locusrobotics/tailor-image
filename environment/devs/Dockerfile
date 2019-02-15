@@ -50,7 +50,7 @@ RUN apt-get install -y python3-pip && \
 # Inject the rosdep definitions from source
 RUN rosdep init
 RUN echo "yaml file:///etc/ros/rosdep/rosdep.yaml" > /etc/ros/rosdep/sources.list.d/10-tailor.list
-COPY rosdistro/rosdep/rosdep.yaml /etc/ros/rosdep/rosdep.yaml
+COPY rosdep.yaml /etc/ros/rosdep/rosdep.yaml
 
 # Install packages to make dev's lifes easier
 RUN apt-get update && apt-get install --no-install-recommends -y vim emacs nano git

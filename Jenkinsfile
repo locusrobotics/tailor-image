@@ -7,6 +7,7 @@ def recipes_yaml = 'rosdistro/config/recipes.yaml'
 def images_yaml = 'rosdistro/config/images.yaml'
 
 def testImage = { distribution, release_label, docker_registry, image_name -> docker_registry - "https://" + ':tailor-image-'+ image_name + '-' + distribution + '-' + release_label }
+def parentImage = { release, docker_registry -> docker_registry - "https://" + ':tailor-image-' + release + '-parent-' + env.BRANCH_NAME }
 
 def distributions = []
 def images = null
@@ -69,6 +70,50 @@ pipeline {
       }
     }
 
+    stage("Build and test tailor-image") {
+      agent any
+      steps {
+        script {
+          dir('tailor-image') {
+            checkout(scm)
+          }
+          stash(name: 'source', includes: 'tailor-image/**')
+          def parent_image_label = parentImage(params.release_label, params.docker_registry)
+          def parent_image = docker.image(parent_image_label)
+          try {
+            docker.withRegistry(params.docker_registry, docker_credentials) { parent_image.pull() }
+          } catch (all) {
+            echo("Unable to pull ${parent_image_label} as a build cache")
+          }
+
+          unstash(name: 'rosdistro')
+          withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
+            parent_image = docker.build(parent_image_label,
+              "-f tailor-image/environment/Dockerfile --cache-from ${parent_image_label} " +
+              "--build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
+              "--build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY .")
+          }
+
+          parent_image.inside() {
+            sh('cd tailor-image && python3 setup.py test')
+          }
+          docker.withRegistry(params.docker_registry, docker_credentials) {
+            parent_image.push()
+          }
+        }
+      }
+      post {
+        always {
+          junit(testResults: 'tailor-image/test-results.xml')
+        }
+        cleanup {
+          deleteDir()
+          // If two docker prunes run simultaneously, one will fail, hence || true
+          sh('docker image prune -af --filter="until=3h" --filter="label=tailor" || true')
+        }
+      }
+    }
+
     stage("Create images") {
       agent none
       steps {
@@ -83,26 +128,21 @@ pipeline {
                   }
                   unstash(name: 'rosdistro')
 
-                  if (config['build_type'] == 'docker') {
-                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
-                      docker_image = docker.build(testImage(distribution, params.release_label, params.docker_registry, image),
-                        "-f ${config['provision_file']} --no-cache " +
-                        "--build-arg OS_NAME=ubuntu " +
-                        "--build-arg OS_VERSION=${distribution} " +
-                        "--build-arg APT_REPO=${params.apt_repo - 's3://'} " +
-                        "--build-arg RELEASE_TRACK=${params.release_track} " +
-                        "--build-arg ORGANIZATION=${organization} " +
-                        "--build-arg FLAVOUR=${testing_flavour} " +
-                        "--build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
-                        "--build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY .")
+                  def parent_image = docker.image(parentImage(params.release_label, params.docker_registry))
+                  docker.withRegistry(params.docker_registry, docker_credentials) {
+                    parent_image.pull()
+                  }
+
+                  withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
+                    parent_image.inside("-v /var/run/docker.sock:/var/run/docker.sock --privileged " +
+                                        "--env AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
+                                        "--env AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY") {
+                      sh( "sudo -E create_image --name ${image} --build-type ${config['build_type']} " +
+                          " --package ${config['package']} --provision-file ${config['provision_file']} " +
+                          " --distribution ${distribution} --apt-repo ${params.apt_repo - 's3://'} " +
+                          " --release_track ${params.release_track} --flavour ${testing_flavour} " +
+                          " --organization ${organization} ${params.deploy ? '--publish' : ''}")
                     }
-                    docker.withRegistry(params.docker_registry, docker_credentials) {
-                      if(params.deploy) {
-                        docker_image.push()
-                      }
-                    }
-                  } else if (config['build'] == 'bare_metal') {
-                    echo("Building for bare_metal")
                   }
                 } finally {
                   deleteDir()

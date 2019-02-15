@@ -50,13 +50,7 @@ RUN apt-get install -y python3-pip && \
 # Inject the rosdep definitions from source
 RUN rosdep init
 RUN echo "yaml file:///etc/ros/rosdep/rosdep.yaml" > /etc/ros/rosdep/sources.list.d/10-tailor.list
+RUN mkdir -p /etc/ros/rosdep
 COPY rosdistro/rosdep/rosdep.yaml /etc/ros/rosdep/rosdep.yaml
-
-# Create non-root user
-RUN groupadd -r tailor && useradd -ms /bin/bash -g tailor -G sudo tailor
-RUN echo "tailor ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers
-USER tailor
-RUN mkdir -p /home/tailor && \
-    usermod -d /home/tailor tailor
 
 RUN rosdep update
