@@ -37,7 +37,8 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
         click.echo(f'Failed to login to {registry}, verify credentianls.', err=True)
         return 1
 
-    tag = registry.replace('https://', '') + ':tailor-image-' + distribution + '-' + name + '-image'
+    tag = 'tailor-image-' + distribution + '-' + name + '-image'
+    full_tag = registry.replace('https://', '') + ':' + tag
 
     buildargs = {
         'OS_NAME': 'ubuntu',
@@ -55,13 +56,13 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
     try:
         image, logs = docker_client.images.build(path='.',
                                                  dockerfile=dockerfile,
-                                                 tag=tag,
+                                                 tag=full_tag,
                                                  nocache=True,
                                                  rm=True,
                                                  buildargs=buildargs)
 
         if publish:
-            for line in docker_client.images.push(tag, stream=True, decode=True):
+            for line in docker_client.images.push(registry, tag=tag, stream=True, decode=True):
                 click.echo(line, err=True)
 
         click.echo(f'Image successfully built: {image}')
