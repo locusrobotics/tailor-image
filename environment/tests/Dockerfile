@@ -60,4 +60,5 @@ USER tailor
 RUN mkdir -p /home/tailor && \
     usermod -d /home/tailor tailor
 
-RUN rosdep update
+# Rosdep fails for fuerte.yaml, so we need || true to not fail
+RUN rosdep update || true
