@@ -55,7 +55,6 @@ COPY rosdistro/rosdep/rosdep.yaml /etc/ros/rosdep/rosdep.yaml
 
 # Create non-root user
 RUN groupadd -r tailor && useradd -ms /bin/bash -g tailor -G sudo tailor
-RUN usermod -aG docker tailor
 RUN echo "tailor ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers
 USER tailor
 RUN mkdir -p /home/tailor && \
