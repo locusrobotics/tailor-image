@@ -62,7 +62,7 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
                                                  buildargs=buildargs)
 
         if publish:
-            for line in docker_client.images.push(registry, tag=tag, stream=True, decode=True):
+            for line in docker_client.images.push(registry.replace('https://', ''), tag=tag, stream=True, decode=True):
                 click.echo(line, err=True)
 
         click.echo(f'Image successfully built: {image}')
