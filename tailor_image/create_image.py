@@ -11,10 +11,11 @@ import docker
 
 
 def create_image(name: str, build_type: str, package: bool, provision_file: str, distribution: str, apt_repo: str,
-                 release_track: str, flavour: str, organization: str, publish: bool = False):
+                 release_track: str, flavour: str, organization: str, docker_registry: str, publish: bool = False):
     if build_type == 'docker':
         create_docker_image(name=name, dockerfile=provision_file, distribution=distribution, apt_repo=apt_repo,
-                            release_track=release_track, flavour=flavour, organization=organization, publish=publish)
+                            release_track=release_track, flavour=flavour, organization=organization, publish=publish,
+                            docker_registry=docker_registry)
 
     elif build_type == 'bare_metal':
         create_bare_metal_image(provision_file)
@@ -25,7 +26,7 @@ def create_bare_metal_image(provision_file: str):
 
 
 def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo: str, release_track: str, flavour: str,
-                        organization: str, publish: bool):
+                        organization: str, docker_registry: str, publish: bool):
 
     click.echo(f'Building docker image with: {dockerfile}')
     docker_client = docker.APIClient(base_url='unix://var/run/docker.sock')
@@ -33,10 +34,9 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
     ecr_client = boto3.client('ecr', region_name='us-east-1')
     token = ecr_client.get_authorization_token()
     username, password = base64.b64decode(token['authorizationData'][0]['authorizationToken']).decode().split(':')
-    registry = token['authorizationData'][0]['proxyEndpoint']
 
     tag = 'tailor-image-' + distribution + '-' + name + '-image'
-    full_tag = registry.replace('https://', '') + ':' + tag
+    full_tag = docker_registry.replace('https://', '') + ':' + tag
 
     buildargs = {
         'OS_NAME': 'ubuntu',
@@ -60,7 +60,7 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
             process_docker_api_line(line)
 
         if publish:
-            for line in docker_client.push(registry.replace('https://', ''),
+            for line in docker_client.push(docker_registry.replace('https://', ''),
                                            tag=tag,
                                            stream=True,
                                            decode=True,
@@ -105,10 +105,11 @@ def main():
     parser.add_argument('--provision-file', type=str, required=True)
     parser.add_argument('--distribution', type=str)
     parser.add_argument('--apt-repo', type=str)
-    parser.add_argument('--release_track', type=str)
+    parser.add_argument('--release-track', type=str)
     parser.add_argument('--flavour', type=str)
     parser.add_argument('--organization', type=str)
     parser.add_argument('--publish', action='store_true')
+    parser.add_argument('--docker-registry', type=str)
 
     args = parser.parse_args()
 

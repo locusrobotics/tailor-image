@@ -138,10 +138,11 @@ pipeline {
                                         "--env AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
                                         "--env AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY") {
                       sh( "sudo -E create_image --name ${image} --build-type ${config['build_type']} " +
-                          " --package ${config['package']} --provision-file ${config['provision_file']} " +
-                          " --distribution ${distribution} --apt-repo ${params.apt_repo - 's3://'} " +
-                          " --release_track ${params.release_track} --flavour ${testing_flavour} " +
-                          " --organization ${organization} ${params.deploy ? '--publish' : ''}")
+                          "--package ${config['package']} --provision-file ${config['provision_file']} " +
+                          "--distribution ${distribution} --apt-repo ${params.apt_repo - 's3://'} " +
+                          "--release-track ${params.release_track} --flavour ${testing_flavour} " +
+                          "--organization ${organization} ${params.deploy ? '--publish' : ''} " +
+                          "--docker-registry ${params.docker_registry}")
                     }
                   }
                 } finally {
