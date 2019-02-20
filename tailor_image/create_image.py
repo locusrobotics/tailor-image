@@ -33,10 +33,6 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
     username, password = base64.b64decode(token['authorizationData'][0]['authorizationToken']).decode().split(':')
     registry = token['authorizationData'][0]['proxyEndpoint']
 
-    if not docker_client.login(username, password, registry=registry, reauth=True)['Status'] == 'Login Succeeded':
-        click.echo(f'Failed to login to {registry}, verify credentianls.', err=True)
-        return 1
-
     tag = 'tailor-image-' + distribution + '-' + name + '-image'
     full_tag = registry.replace('https://', '') + ':' + tag
 
@@ -62,6 +58,10 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
                                                  buildargs=buildargs)
 
         if publish:
+            if not docker_client.login(username, password, registry=registry, reauth=True)['Status'] == 'Login Succeeded':
+                click.echo(f'Failed to login to {registry}, verify credentianls.', err=True)
+                return 1
+
             for line in docker_client.images.push(registry.replace('https://', ''), tag=tag, stream=True, decode=True):
                 click.echo(line, err=True)
 
