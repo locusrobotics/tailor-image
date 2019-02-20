@@ -73,6 +73,7 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
 
     return 0
 
+
 def process_docker_api_line(payload):
     """ Process the output from API stream, throw an Exception if there is an error """
     # Sometimes Docker sends to "{}\n" blocks together...
@@ -81,8 +82,9 @@ def process_docker_api_line(payload):
         if line:
             try:
                 line_payload = json.loads(line)
-            except ValueError as error:
-                click.echo(f'Could not decipher payload from API: {error}', err=True)
+            except ValueError as err:
+                click.echo(f'Could not decipher payload from API: {err}', err=True)
+
             if line_payload:
                 if 'errorDetail'in line_payload:
                     error = line_payload["errorDetail"]
