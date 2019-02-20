@@ -77,7 +77,7 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
 def process_docker_api_line(payload):
     """ Process the output from API stream, throw an Exception if there is an error """
     # Sometimes Docker sends to "{}\n" blocks together...
-    for segment in payload.split('\n'):
+    for segment in payload.split(b'\n'):
         line = segment.strip()
         if line:
             try:
