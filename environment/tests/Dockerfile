@@ -50,7 +50,6 @@ RUN apt-get install -y python3-pip && \
 # Inject the rosdep definitions from source
 RUN rosdep init
 RUN echo "yaml file:///etc/ros/rosdep/rosdep.yaml" > /etc/ros/rosdep/sources.list.d/10-tailor.list
-RUN mkdir -p /etc/ros/rosdep
 COPY rosdistro/rosdep/rosdep.yaml /etc/ros/rosdep/rosdep.yaml
 
 # Create non-root user
