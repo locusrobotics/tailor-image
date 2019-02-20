@@ -60,11 +60,11 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
             process_docker_api_line(line)
 
         if publish:
-            if docker_client.login(username, password, registry=registry, reauth=True)['Status'] != 'Login Succeeded':
-                click.echo(f'Failed to login to {registry}, verify credentianls.', err=True)
-                return 1
-
-            for line in docker_client.push(registry.replace('https://', ''), tag=tag, stream=True, decode=True):
+            for line in docker_client.push(registry.replace('https://', ''),
+                                           tag=tag,
+                                           stream=True,
+                                           decode=True,
+                                           auth_config={'username': username, 'password': password}):
                 click.echo(line, err=True)
 
         click.echo(f'Image successfully built: {full_tag}')
@@ -90,9 +90,10 @@ def process_docker_api_line(payload):
                     error = line_payload["errorDetail"]
                     click.echo(f'Error on build: {error["message"]}', err=True)
                 elif 'stream' in line_payload:
-                    if line_payload['stream'] != '\n':
-                        if line_payload['stream'].endswith('\n'):
-                                line_payload['stream'] = line_payload['stream'][:-1]
+                    if line_payload['stream'].endswith('\n'):
+                        line_payload['stream'] = line_payload['stream'][:-1]
+
+                    if line_payload['stream'] != '':
                         click.echo(line_payload["stream"], err=True)
 
 
