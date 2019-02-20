@@ -1,11 +1,13 @@
 #!/usr/bin/python3
-import argparse
 import base64
+import json
+import os
+import sys
+
+import argparse
 import boto3
 import click
 import docker
-import os
-import sys
 
 
 def create_image(name: str, build_type: str, package: bool, provision_file: str, distribution: str, apt_repo: str,
@@ -26,7 +28,7 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
                         organization: str, publish: bool):
 
     click.echo(f'Building docker image with: {dockerfile}')
-    docker_client = docker.from_env()
+    docker_client = docker.APIClient(base_url='unix://var/run/docker.sock')
 
     ecr_client = boto3.client('ecr', region_name='us-east-1')
     token = ecr_client.get_authorization_token()
@@ -48,40 +50,46 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
     }
 
     # Build using provided dockerfile
-    logs = None
     try:
-        image, logs = docker_client.images.build(path='.',
-                                                 dockerfile=dockerfile,
-                                                 tag=full_tag,
-                                                 nocache=True,
-                                                 rm=True,
-                                                 buildargs=buildargs)
+        for line in docker_client.build(path='.',
+                                        dockerfile=dockerfile,
+                                        tag=full_tag,
+                                        nocache=True,
+                                        rm=True,
+                                        buildargs=buildargs):
+            process_docker_api_line(line)
 
         if publish:
             if docker_client.login(username, password, registry=registry, reauth=True)['Status'] != 'Login Succeeded':
                 click.echo(f'Failed to login to {registry}, verify credentianls.', err=True)
                 return 1
 
-            for line in docker_client.images.push(registry.replace('https://', ''), tag=tag, stream=True, decode=True):
+            for line in docker_client.push(registry.replace('https://', ''), tag=tag, stream=True, decode=True):
                 click.echo(line, err=True)
 
-        click.echo(f'Image successfully built: {image}')
-    except docker.errors.ImageNotFound as error:
-        click.echo(f'Build failed, image not found: {error}', err=True)
+        click.echo(f'Image successfully built: {full_tag}')
     except docker.errors.APIError as error:
         click.echo(f'Docker API Error: {error}', err=True)
-    except docker.errors.BuildError as error:
-        click.echo(f'Error building docker image: {error}', err=True)
-
-    if logs is not None:
-        for log in logs:
-            try:
-                log_cleaned = log['stream'].replace('\n', '')
-                click.echo(f'{log_cleaned}', err=True)
-            except KeyError:
-                pass
 
     return 0
+
+def process_docker_api_line(payload):
+    """ Process the output from API stream, throw an Exception if there is an error """
+    # Sometimes Docker sends to "{}\n" blocks together...
+    for segment in payload.split('\n'):
+        line = segment.strip()
+        if line:
+            try:
+                line_payload = json.loads(line)
+            except ValueError as error:
+                click.echo(f'Could not decipher payload from API: {error}', err=True)
+            if line_payload:
+                if 'errorDetail'in line_payload:
+                    error = line_payload["errorDetail"]
+                    click.echo(f'Error on build: {error["message"]}', err=True)
+                elif 'stream' in line_payload:
+                    click.echo(line_payload["stream"], err=True)
+                    sys.stdout.write(line_payload["stream"])
 
 
 def main():
