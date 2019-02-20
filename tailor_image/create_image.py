@@ -90,8 +90,10 @@ def process_docker_api_line(payload):
                     error = line_payload["errorDetail"]
                     click.echo(f'Error on build: {error["message"]}', err=True)
                 elif 'stream' in line_payload:
-                    click.echo(line_payload["stream"], err=True)
-                    sys.stdout.write(line_payload["stream"])
+                    if line_payload['stream'] != '\n':
+                        if line_payload['stream'].endswith('\n'):
+                                line_payload['stream'] = line_payload['stream'][:-1]
+                        click.echo(line_payload["stream"], err=True)
 
 
 def main():
