@@ -58,7 +58,7 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
                                                  buildargs=buildargs)
 
         if publish:
-            if not docker_client.login(username, password, registry=registry, reauth=True)['Status'] == 'Login Succeeded':
+            if docker_client.login(username, password, registry=registry, reauth=True)['Status'] != 'Login Succeeded':
                 click.echo(f'Failed to login to {registry}, verify credentianls.', err=True)
                 return 1
 
