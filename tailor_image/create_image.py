@@ -22,6 +22,7 @@ def create_image(name: str, build_type: str, package: bool, provision_file: str,
 
 
 def create_bare_metal_image(provision_file: str):
+    # TODO(gservin): Add steps to create bare metal on CI [RST-1668]
     click.echo(f'Building bare metal image with: {provision_file}', err=True)
 
 
@@ -29,7 +30,7 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
                         organization: str, docker_registry: str, publish: bool):
 
     click.echo(f'Building docker image with: {dockerfile}')
-    docker_client = docker.APIClient(base_url='unix://var/run/docker.sock')
+    docker_client = docker.from_env()
 
     ecr_client = boto3.client('ecr', region_name='us-east-1')
     token = ecr_client.get_authorization_token()
@@ -51,31 +52,35 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
 
     # Build using provided dockerfile
     try:
-        for line in docker_client.build(path='.',
-                                        dockerfile=dockerfile,
-                                        tag=full_tag,
-                                        nocache=True,
-                                        rm=True,
-                                        buildargs=buildargs):
+        image, logs = docker_client.images.build(path='.',
+                                                 dockerfile=dockerfile,
+                                                 tag=full_tag,
+                                                 nocache=True,
+                                                 rm=True,
+                                                 buildargs=buildargs)
+
+        for line in logs:
             process_docker_api_line(line)
 
         if publish:
-            for line in docker_client.push(docker_registry.replace('https://', ''),
-                                           tag=tag,
-                                           stream=True,
-                                           decode=True,
-                                           auth_config={'username': username, 'password': password}):
+            for line in docker_client.image.push(docker_registry.replace('https://', ''),
+                                                 tag=tag,
+                                                 stream=True,
+                                                 decode=True):
                 click.echo(line, err=True)
 
-        click.echo(f'Image successfully built: {full_tag}')
+        click.echo(f'Image successfully built: {image.tags[0]}')
     except docker.errors.APIError as error:
         click.echo(f'Docker API Error: {error}', err=True)
+    except docker.errors.BuildError as error:
+        for line in error.build_log:
+            process_docker_api_line(line)
 
     return 0
 
 
 def process_docker_api_line(payload):
-    """ Process the output from API stream, throw an Exception if there is an error """
+    """ Process the output from API stream """
     # Sometimes Docker sends to "{}\n" blocks together...
     for segment in payload.split(b'\n'):
         line = segment.strip()

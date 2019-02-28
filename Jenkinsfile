@@ -118,7 +118,7 @@ pipeline {
       agent none
       steps {
         script {
-          def jobs = new LinkedHashMap()
+          def jobs = [:]
           distributions.each { distribution ->
             jobs << images.collectEntries { image, config ->
               ["${image}-${distribution}", { node {
