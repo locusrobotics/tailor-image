@@ -10,11 +10,12 @@ import docker
 
 
 def create_image(name: str, build_type: str, package: bool, provision_file: str, distribution: str, apt_repo: str,
-                 release_track: str, flavour: str, organization: str, docker_registry: str, publish: bool = False):
+                 release_track: str, release_label: str, flavour: str, organization: str, docker_registry: str,
+                 publish: bool = False):
     if build_type == 'docker':
         create_docker_image(name=name, dockerfile=provision_file, distribution=distribution, apt_repo=apt_repo,
-                            release_track=release_track, flavour=flavour, organization=organization, publish=publish,
-                            docker_registry=docker_registry)
+                            release_track=release_track, flavour=flavour, release_label=release_label,
+                            organization=organization, publish=publish, docker_registry=docker_registry)
 
     elif build_type == 'bare_metal':
         create_bare_metal_image(provision_file)
@@ -26,7 +27,7 @@ def create_bare_metal_image(provision_file: str):
 
 
 def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo: str, release_track: str, flavour: str,
-                        organization: str, docker_registry: str, publish: bool):
+                        release_label: str, organization: str, docker_registry: str, publish: bool):
 
     click.echo(f'Building docker image with: {dockerfile}')
     docker_client = docker.from_env()
@@ -35,7 +36,7 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
     token = ecr_client.get_authorization_token()
     username, password = base64.b64decode(token['authorizationData'][0]['authorizationToken']).decode().split(':')
 
-    tag = 'tailor-image-' + distribution + '-' + name + '-image'
+    tag = 'tailor-image-' + name + '-' + distribution + '-' + release_label
     full_tag = docker_registry.replace('https://', '') + ':' + tag
 
     buildargs = {
@@ -104,6 +105,7 @@ def main():
     parser.add_argument('--distribution', type=str)
     parser.add_argument('--apt-repo', type=str)
     parser.add_argument('--release-track', type=str)
+    parser.add_argument('--release-label', type=str)
     parser.add_argument('--flavour', type=str)
     parser.add_argument('--organization', type=str)
     parser.add_argument('--publish', action='store_true')
