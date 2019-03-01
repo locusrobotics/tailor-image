@@ -63,15 +63,12 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
 
         if publish:
             auth_config = {'username': username, 'password': password}
-            click.echo("Pushing")
             for line in docker_client.images.push(docker_registry.replace('https://', ''),
                                                   tag=tag,
                                                   stream=True,
                                                   decode=True,
                                                   auth_config=auth_config):
                 process_docker_api_line(line)
-
-            click.echo("Finish Pushing")
 
         click.echo(f'Image successfully built: {image.tags[0]}')
     except docker.errors.APIError as error:
@@ -94,6 +91,8 @@ def process_docker_api_line(line):
 
         if line['stream'] != '':
             click.echo(line["stream"], err=True)
+    elif 'status' in line:
+        click.echo(line["status"], err=True)
 
 
 def main():
