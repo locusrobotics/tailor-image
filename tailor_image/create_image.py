@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 import base64
-import json
 import os
 import sys
 
@@ -63,11 +62,16 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
             process_docker_api_line(line)
 
         if publish:
-            for line in docker_client.image.push(docker_registry.replace('https://', ''),
-                                                 tag=tag,
-                                                 stream=True,
-                                                 decode=True):
-                click.echo(line, err=True)
+            auth_config = {'username': username, 'password': password}
+            click.echo("Pushing")
+            for line in docker_client.images.push(docker_registry.replace('https://', ''),
+                                                  tag=tag,
+                                                  stream=True,
+                                                  decode=True,
+                                                  auth_config=auth_config):
+                process_docker_api_line(line)
+
+            click.echo("Finish Pushing")
 
         click.echo(f'Image successfully built: {image.tags[0]}')
     except docker.errors.APIError as error:
@@ -79,27 +83,17 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
     return 0
 
 
-def process_docker_api_line(payload):
+def process_docker_api_line(line):
     """ Process the output from API stream """
-    # Sometimes Docker sends to "{}\n" blocks together...
-    for segment in payload.split(b'\n'):
-        line = segment.strip()
-        if line:
-            try:
-                line_payload = json.loads(line)
-            except ValueError as err:
-                click.echo(f'Could not decipher payload from API: {err}', err=True)
+    if 'errorDetail'in line:
+        error = line["errorDetail"]
+        click.echo(f'Error: {error["message"]}', err=True)
+    elif 'stream' in line:
+        if line['stream'].endswith('\n'):
+            line['stream'] = line['stream'][:-1]
 
-            if line_payload:
-                if 'errorDetail'in line_payload:
-                    error = line_payload["errorDetail"]
-                    click.echo(f'Error on build: {error["message"]}', err=True)
-                elif 'stream' in line_payload:
-                    if line_payload['stream'].endswith('\n'):
-                        line_payload['stream'] = line_payload['stream'][:-1]
-
-                    if line_payload['stream'] != '':
-                        click.echo(line_payload["stream"], err=True)
+        if line['stream'] != '':
+            click.echo(line["stream"], err=True)
 
 
 def main():
