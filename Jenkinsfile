@@ -6,7 +6,6 @@ def docker_credentials = 'ecr:us-east-1:tailor_aws'
 def recipes_yaml = 'rosdistro/config/recipes.yaml'
 def images_yaml = 'rosdistro/config/images.yaml'
 
-def testImage = { distribution, release_label, docker_registry, image_name -> docker_registry - "https://" + ':tailor-image-'+ image_name + '-' + distribution + '-' + release_label }
 def parentImage = { release, docker_registry -> docker_registry - "https://" + ':tailor-image-' + release + '-parent-' + env.BRANCH_NAME }
 
 def distributions = []
@@ -140,9 +139,9 @@ pipeline {
                       sh( "sudo -E create_image --name ${image} --build-type ${config['build_type']} " +
                           "--package ${config['package']} --provision-file ${config['provision_file']} " +
                           "--distribution ${distribution} --apt-repo ${params.apt_repo - 's3://'} " +
-                          "--release-track ${params.release_track} --flavour ${testing_flavour} " +
-                          "--organization ${organization} ${params.deploy ? '--publish' : ''} " +
-                          "--docker-registry ${params.docker_registry}")
+                          "--release-track ${params.release_track} --release-label ${params.release_label} " +
+                          "--flavour ${testing_flavour} --organization ${organization} " +
+                          "${params.deploy ? '--publish' : ''} --docker-registry ${params.docker_registry}")
                     }
                   }
                 } finally {
