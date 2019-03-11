@@ -76,6 +76,7 @@ pipeline {
           dir('tailor-image') {
             checkout(scm)
           }
+
           stash(name: 'source', includes: 'tailor-image/**')
           def parent_image_label = parentImage(params.release_label, params.docker_registry)
           def parent_image = docker.image(parent_image_label)
@@ -86,11 +87,13 @@ pipeline {
           }
 
           unstash(name: 'rosdistro')
-          withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
+          withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws'],
+                            string(credentialsId: 'ansible_vault_password', variable: 'ANSIBLE_VAULT_PASS') ]) {
             parent_image = docker.build(parent_image_label,
               "-f tailor-image/environment/Dockerfile --cache-from ${parent_image_label} " +
               "--build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
-              "--build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY .")
+              "--build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY " +
+              "--build-arg ANSIBLE_VAULT_PASS=$ANSIBLE_VAULT_PASS .")
           }
 
           parent_image.inside() {
@@ -132,16 +135,18 @@ pipeline {
                     parent_image.pull()
                   }
 
-                  withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
+                  withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws'],
+                                    string(credentialsId: 'tailor_github', variable: 'GITHUB_TOKEN') ]) {
                     parent_image.inside("-v /var/run/docker.sock:/var/run/docker.sock --privileged " +
                                         "--env AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
-                                        "--env AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY") {
-                      sh( "sudo -E create_image --name ${image} --build-type ${config['build_type']} " +
-                          "--package ${config['package']} --provision-file ${config['provision_file']} " +
-                          "--distribution ${distribution} --apt-repo ${params.apt_repo - 's3://'} " +
-                          "--release-track ${params.release_track} --release-label ${params.release_label} " +
-                          "--flavour ${testing_flavour} --organization ${organization} " +
-                          "${params.deploy ? '--publish' : ''} --docker-registry ${params.docker_registry}")
+                                        "--env AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY " +
+                                        "--env GITHUB_TOKEN=$GITHUB_TOKEN") {
+                      sh( "create_image --name ${image} --distribution ${distribution} " +
+                          "--apt-repo ${params.apt_repo - 's3://'} --release-track ${params.release_track} " +
+                          "--release-label ${params.release_label} --flavour ${testing_flavour} --ros-version ros1 " +
+                          "--organization ${organization} ${params.deploy ? '--publish' : ''} " +
+                          "--docker-registry ${params.docker_registry} --github-key $GITHUB_TOKEN " +
+                          "--rosdistro-index /rosdistro/rosdistro/index.yaml")
                     }
                   }
                 } finally {
