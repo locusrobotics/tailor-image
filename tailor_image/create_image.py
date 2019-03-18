@@ -34,15 +34,15 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
                             release_track=release_track, flavour=flavour, release_label=release_label,
                             organization=organization, publish=publish, docker_registry=docker_registry)
 
-    # Only build bare_metal if we're on xenial
-    elif build_type == 'bare_metal' and distribution == 'xenial':
+    # Building takes around 1,5 hours, build only if publish is set to true
+    # TODO(gservin): Only build bare_metal if we're on xenial for now, add a better check
+    elif build_type == 'bare_metal' and publish and distribution == 'xenial':
         # Get package containing recipes to build images
         src_dir = pathlib.Path('/tmp')
         get_recipes_package(rosdistro_path=rosdistro_path, github_token=github_token, src_dir=src_dir, package=package,
                             ros_version=ros_version)
 
-        create_bare_metal_image(image_name=name, provision_file=provision_file, s3_bucket=apt_repo, src_dir=src_dir,
-                                publish=publish)
+        create_bare_metal_image(image_name=name, provision_file=provision_file, s3_bucket=apt_repo, src_dir=src_dir)
 
 
 def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo: str, release_track: str, flavour: str,
@@ -115,11 +115,7 @@ def process_docker_api_line(line):
         click.echo(line["status"], err=True)
 
 
-def create_bare_metal_image(image_name: str, provision_file: str, s3_bucket: str, src_dir: pathlib.Path, publish: bool):
-
-    if not publish:
-        # Since building takes a long time, don't build in this case
-        return
+def create_bare_metal_image(image_name: str, provision_file: str, s3_bucket: str, src_dir: pathlib.Path):
 
     click.echo(f'Building bare metal image with: {provision_file}', err=True)
 
