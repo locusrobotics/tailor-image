@@ -79,7 +79,7 @@ USER tailor
 RUN mkdir -p /home/tailor && \
     usermod -d /home/tailor tailor
 
-RUN echo "${ANSIBLE_VAULT_PASS}" > /home/tailor/.vault_pass.txt
+RUN echo "${ANSIBLE_VAULT_PASS}" | tee /home/tailor/.vault_pass.txt
 RUN aws configure set aws_access_key_id ${AWS_ACCESS_KEY_ID} && \
     aws configure set aws_secret_access_key ${AWS_SECRET_ACCESS_KEY} && \
     aws configure set default.region ${AWS_DEFAULT_REGION}
