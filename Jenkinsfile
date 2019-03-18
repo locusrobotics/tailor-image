@@ -146,7 +146,7 @@ pipeline {
                           "--apt-repo ${params.apt_repo - 's3://'} --release-track ${params.release_track} " +
                           "--release-label ${params.release_label} --flavour ${testing_flavour} --ros-version ros1 " +
                           "--organization ${organization} ${params.deploy ? '--publish' : ''} " +
-                          "--docker-registry ${params.docker_registry} --github-key $GITHUB_TOKEN " +
+                          "--docker-registry ${params.docker_registry} --github-token $GITHUB_TOKEN " +
                           "--rosdistro-path /rosdistro")
                     }
                   }

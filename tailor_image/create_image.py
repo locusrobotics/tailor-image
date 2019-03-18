@@ -20,7 +20,7 @@ from . import run_command
 
 
 def create_image(name: str, distribution: str, apt_repo: str, release_track: str, release_label: str, flavour: str,
-                 organization: str, docker_registry: str, rosdistro_path: pathlib.Path, github_key: str,
+                 organization: str, docker_registry: str, rosdistro_path: pathlib.Path, github_token: str,
                  ros_version: str, publish: bool = False):
 
     # Read configuration files
@@ -38,7 +38,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     elif build_type == 'bare_metal' and distribution == 'xenial':
         # Get package containing recipes to build images
         src_dir = pathlib.Path('/tmp')
-        get_recipes_package(rosdistro_path=rosdistro_path, github_key=github_key, src_dir=src_dir, package=package,
+        get_recipes_package(rosdistro_path=rosdistro_path, github_token=github_token, src_dir=src_dir, package=package,
                             ros_version=ros_version)
 
         create_bare_metal_image(image_name=name, provision_file=provision_file, s3_bucket=apt_repo, src_dir=src_dir,
@@ -161,13 +161,13 @@ def find_in_path(name: str, path: pathlib.Path):
     return None
 
 
-def get_recipes_package(rosdistro_path: pathlib.Path, github_key: str, src_dir: pathlib.Path, package: str,
+def get_recipes_package(rosdistro_path: pathlib.Path, github_token: str, src_dir: pathlib.Path, package: str,
                         ros_version: str):
 
     # Get dependencies
     index = rosdistro.get_index(pathlib.Path(find_in_path('index.yaml', rosdistro_path)).resolve().as_uri())
 
-    github_client = github.Github(github_key)
+    github_client = github.Github(github_token)
 
     distro = rosdistro.get_distribution(index, ros_version)
     src_dir.mkdir(parents=True, exist_ok=True)
@@ -247,7 +247,7 @@ def main():
     parser.add_argument('--docker-registry', type=str)
     parser.add_argument('--ros-version', type=str)
     parser.add_argument('--rosdistro-path', type=pathlib.Path)
-    parser.add_argument('--github-key', type=str)
+    parser.add_argument('--github-token', type=str)
 
     args = parser.parse_args()
 
