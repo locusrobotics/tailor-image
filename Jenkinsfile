@@ -141,7 +141,8 @@ pipeline {
                                         "--env AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
                                         "--env AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY " +
                                         "--env GITHUB_TOKEN=$GITHUB_TOKEN") {
-                      sh( "create_image --name ${image} --distribution ${distribution} " +
+                      def use_sudo = config['build_type'] == 'docker' ? 'sudo -E' : ''
+                      sh( "${use_sudo} create_image --name ${image} --distribution ${distribution} " +
                           "--apt-repo ${params.apt_repo - 's3://'} --release-track ${params.release_track} " +
                           "--release-label ${params.release_label} --flavour ${testing_flavour} --ros-version ros1 " +
                           "--organization ${organization} ${params.deploy ? '--publish' : ''} " +
