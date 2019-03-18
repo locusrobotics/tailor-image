@@ -39,10 +39,15 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     elif build_type == 'bare_metal' and publish and distribution == 'xenial':
         # Get package containing recipes to build images
         src_dir = pathlib.Path('/tmp')
+
+        # Get information about base image
+        base_image_link = recipe[name]['base_image_link']
+        base_image_checksum = recipe[name]['base_image_checksum']
         get_recipes_package(rosdistro_path=rosdistro_path, github_token=github_token, src_dir=src_dir, package=package,
                             ros_version=ros_version)
 
-        create_bare_metal_image(image_name=name, provision_file=provision_file, s3_bucket=apt_repo, src_dir=src_dir)
+        create_bare_metal_image(image_name=name, provision_file=provision_file, s3_bucket=apt_repo, src_dir=src_dir,
+                                base_image_link=base_image_link, base_image_checksum=base_image_checksum)
 
 
 def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo: str, release_track: str, flavour: str,
@@ -115,7 +120,8 @@ def process_docker_api_line(line):
         click.echo(line["status"], err=True)
 
 
-def create_bare_metal_image(image_name: str, provision_file: str, s3_bucket: str, src_dir: pathlib.Path):
+def create_bare_metal_image(image_name: str, provision_file: str, s3_bucket: str, src_dir: pathlib.Path,
+                            base_image_link: str, base_image_checksum: str):
 
     click.echo(f'Building bare metal image with: {provision_file}', err=True)
 
@@ -140,10 +146,12 @@ def create_bare_metal_image(image_name: str, provision_file: str, s3_bucket: str
     run_command(['cloud-localds', cloud_img_path, find_in_path('cloud.cfg', src_dir)])
 
     command = ['packer', 'build',
-               '-var', f"vm_name={image_name}",
-               '-var', f"playbook_file={provision_file_path}",
-               '-var', f"s3_bucket={s3_bucket}",
-               '-var', f"cloud_image={cloud_img_path}",
+               '-var', f'vm_name={image_name}',
+               '-var', f'playbook_file={provision_file_path}',
+               '-var', f's3_bucket={s3_bucket}',
+               '-var', f'cloud_image={cloud_img_path}',
+               '-var', f'iso_url={base_image_link}',
+               '-var', f'iso_checksum={base_image_checksum}',
                '-timestamp-ui',
                template_path]
 
