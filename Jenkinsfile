@@ -146,7 +146,7 @@ pipeline {
                           "--release-label ${params.release_label} --flavour ${testing_flavour} --ros-version ros1 " +
                           "--organization ${organization} ${params.deploy ? '--publish' : ''} " +
                           "--docker-registry ${params.docker_registry} --github-key $GITHUB_TOKEN " +
-                          "--rosdistro-index /rosdistro/rosdistro/index.yaml")
+                          "--rosdistro-path /rosdistro")
                     }
                   }
                 } finally {

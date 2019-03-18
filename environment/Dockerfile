@@ -38,6 +38,7 @@ RUN apt-get update -qq && apt-get install -qqy \
     curl \
     iptables \
     lxc \
+    openssh-client \
     unzip \
     xz-utils
 

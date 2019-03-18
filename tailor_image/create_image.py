@@ -20,11 +20,11 @@ from . import run_command
 
 
 def create_image(name: str, distribution: str, apt_repo: str, release_track: str, release_label: str, flavour: str,
-                 organization: str, docker_registry: str, rosdistro_index: pathlib.Path, github_key: str,
+                 organization: str, docker_registry: str, rosdistro_path: pathlib.Path, github_key: str,
                  ros_version: str, publish: bool = False):
 
     # Read configuration files
-    recipe = yaml.safe_load(pathlib.Path('/rosdistro/config/images.yaml').open())['images']
+    recipe = yaml.safe_load(pathlib.Path(find_in_path('images.yaml', rosdistro_path)).open())['images']
     build_type = recipe[name]['build_type']
     package = recipe[name]['package']
     provision_file = recipe[name]['provision_file']
@@ -38,7 +38,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     elif build_type == 'bare_metal' and distribution == 'xenial':
         # Get package containing recipes to build images
         src_dir = pathlib.Path('/tmp')
-        get_recipes_package(rosdistro_index=rosdistro_index, github_key=github_key, src_dir=src_dir, package=package,
+        get_recipes_package(rosdistro_path=rosdistro_path, github_key=github_key, src_dir=src_dir, package=package,
                             ros_version=ros_version)
 
         create_bare_metal_image(image_name=name, provision_file=provision_file, s3_bucket=apt_repo, src_dir=src_dir,
@@ -117,30 +117,24 @@ def process_docker_api_line(line):
 
 def create_bare_metal_image(image_name: str, provision_file: str, s3_bucket: str, src_dir: pathlib.Path, publish: bool):
 
+    if not publish:
+        # Since building takes a long time, don't build in this case
+        return
+
     click.echo(f'Building bare metal image with: {provision_file}', err=True)
 
     # Get path to the different files needed
-    ansible_config_path = find_file('ansible.cfg', src_dir)
-    provision_file_path = find_file(provision_file, src_dir)
-    template_path = find_file('bare_metal.json', src_dir)
-    cloud_cfg_path = find_file('cloud.cfg', src_dir)
-    cloud_img_path = cloud_cfg_path.replace('cfg', 'img')
+    provision_file_path = find_in_path(provision_file, src_dir)
+    template_path = find_in_path('bare_metal.json', src_dir)
+    cloud_img_path = find_in_path('cloud.cfg', src_dir).replace('cfg', 'img')
 
-    # TODO(gservin) Need to investigate a better way to avoid using locus_sentry
-    with open(ansible_config_path) as file:
-        text_to_replace = file.read().replace('locus_sentry, ', '')
-    with open(ansible_config_path, "w") as file:
-        file.write(text_to_replace)
-
-    os.remove(pathlib.Path(find_file('locus_sentry.py', src_dir)))
+    os.environ["ANSIBLE_ROLES_PATH"] = find_in_path('roles', src_dir)
 
     # Generate cloud.img
-    run_command(['cloud-localds', cloud_img_path, cloud_cfg_path])
+    run_command(['cloud-localds', cloud_img_path, find_in_path('cloud.cfg', src_dir)])
 
     command = ['packer', 'build',
                '-var', f"vm_name={image_name}",
-               '-var', 'ansible_command=ansible-playbook',
-               '-var', f"ansible_config_path={str(ansible_config_path)}",
                '-var', f"playbook_file={provision_file_path}",
                '-var', f"s3_bucket={s3_bucket}",
                '-var', f"cloud_image={cloud_img_path}",
@@ -150,19 +144,18 @@ def create_bare_metal_image(image_name: str, provision_file: str, s3_bucket: str
     run_command(command, stdout=sys.stdout, stderr=sys.stderr)
 
 
-def find_file(name: str, path: pathlib.Path):
-    for root, _, files in os.walk(str(path)):
-        for file in files:
-            if file == name:
-                return os.path.join(root, file)
+def find_in_path(name: str, path: pathlib.Path):
+    result = list(path.glob('**/' + name))
+    if result:
+        return str(result[0])
     return None
 
 
-def get_recipes_package(rosdistro_index: pathlib.Path, github_key: str, src_dir: pathlib.Path, package: str,
+def get_recipes_package(rosdistro_path: pathlib.Path, github_key: str, src_dir: pathlib.Path, package: str,
                         ros_version: str):
 
     # Get dependencies
-    index = rosdistro.get_index(rosdistro_index.resolve().as_uri())
+    index = rosdistro.get_index(pathlib.Path(find_in_path('index.yaml', rosdistro_path)).resolve().as_uri())
 
     github_client = github.Github(github_key)
 
@@ -243,7 +236,7 @@ def main():
     parser.add_argument('--publish', action='store_true')
     parser.add_argument('--docker-registry', type=str)
     parser.add_argument('--ros-version', type=str)
-    parser.add_argument('--rosdistro-index', type=pathlib.Path)
+    parser.add_argument('--rosdistro-path', type=pathlib.Path)
     parser.add_argument('--github-key', type=str)
 
     args = parser.parse_args()
