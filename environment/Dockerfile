@@ -14,6 +14,11 @@ ARG GITHUB_TOKEN
 ENV GITHUB_TOKEN ${GITHUB_TOKEN}
 
 ARG ANSIBLE_VAULT_PASS
+ARG APT_REPO
+ARG RELEASE_TRACK
+ARG ORGANIZATION
+ARG FLAVOUR
+ENV BUNDLE_ROOT /opt/${ORGANIZATION}/${RELEASE_TRACK}/${FLAVOUR}
 
 SHELL ["/bin/bash", "-c"]
 
@@ -42,7 +47,6 @@ RUN apt-get update -qq && apt-get install -qqy \
     unzip \
     xz-utils
 
-
 # Install Docker from Docker Inc. repositories.
 RUN curl -sSL https://get.docker.com/ | sh
 
@@ -53,8 +57,6 @@ RUN pip3 install \
     pytest-flake8 \
     pytest-runner \
     docker \
-    PyYaml \
-    ansible \
     awscli
 
 # Install packer
@@ -75,7 +77,27 @@ COPY rosdistro /rosdistro
 RUN groupadd -r tailor && useradd -ms /bin/bash -g tailor -G sudo tailor
 RUN usermod -aG docker tailor
 RUN echo "tailor ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers
+
+# setup ources
+RUN apt-get install -y apt-transport-https apt-transport-s3 && \
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 142D5F1683E1528B
+
+RUN wget -O /usr/lib/apt/methods/s3 https://raw.githubusercontent.com/locusrobotics/apt-transport-s3/https/s3 && \
+    echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_TRACK}/ubuntu bionic main" >> /etc/apt/sources.list && \
+    echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_TRACK}/ubuntu bionic-mirror main" >> /etc/apt/sources.list
+
+# Create auth config file for accesing s3 via apt
+RUN echo "AccessKeyId = $AWS_ACCESS_KEY_ID" | tee /etc/apt/s3auth.conf && \
+    echo "SecretAccessKey = $AWS_SECRET_ACCESS_KEY" | tee -a /etc/apt/s3auth.conf && \
+    echo "Token = ''" | tee -a /etc/apt/s3auth.conf
+
+RUN apt-get update && \
+    RTI_NC_LICENSE_ACCEPTED=yes apt-get install -qy\
+    python-catkin-tools \
+    ${ORGANIZATION}-${FLAVOUR}-${RELEASE_TRACK}
+
 USER tailor
+
 RUN mkdir -p /home/tailor && \
     usermod -d /home/tailor tailor
 
@@ -83,3 +105,12 @@ RUN echo "${ANSIBLE_VAULT_PASS}" | tee /home/tailor/.vault_pass.txt
 RUN aws configure set aws_access_key_id ${AWS_ACCESS_KEY_ID} && \
     aws configure set aws_secret_access_key ${AWS_SECRET_ACCESS_KEY} && \
     aws configure set default.region ${AWS_DEFAULT_REGION}
+
+# configure workspace
+RUN mkdir -p ~/tools_ws/src && \
+    cd ~/tools_ws && \
+    catkin init && \
+    catkin config --cmake-args  -DCMAKE_CXX_FLAGS='-DNDEBUG -g -O3 -fext-numeric-literals' -DCMAKE_CXX_STANDARD='14' \
+      -DCMAKE_CXX_STANDARD_REQUIRED='ON' -DCMAKE_CXX_EXTENSIONS='ON' && \
+    catkin config --extend ${BUNDLE_ROOT}/ros1 && \
+    catkin config --install

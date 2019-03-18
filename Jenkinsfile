@@ -88,12 +88,18 @@ pipeline {
 
           unstash(name: 'rosdistro')
           withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws'],
-                            string(credentialsId: 'ansible_vault_password', variable: 'ANSIBLE_VAULT_PASS') ]) {
+                            string(credentialsId: 'ansible_vault_password', variable: 'ANSIBLE_VAULT_PASS'),
+                            string(credentialsId: 'tailor_github', variable: 'GITHUB_TOKEN') ]) {
             parent_image = docker.build(parent_image_label,
               "-f tailor-image/environment/Dockerfile --cache-from ${parent_image_label} " +
+              "--build-arg APT_REPO=${params.apt_repo} " +
+              "--build-arg RELEASE_TRACK=${params.release_track} " +
+              "--build-arg FLAVOUR=${testing_flavour} " +
+              "--build-arg ORGANIZATION=${organization} " +
               "--build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
               "--build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY " +
-              "--build-arg ANSIBLE_VAULT_PASS=$ANSIBLE_VAULT_PASS .")
+              "--build-arg ANSIBLE_VAULT_PASS=$ANSIBLE_VAULT_PASS " +
+              "--build-arg GITHUB_TOKEN=$GITHUB_TOKEN .")
           }
 
           parent_image.inside() {
