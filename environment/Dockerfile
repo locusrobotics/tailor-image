@@ -78,7 +78,8 @@ RUN groupadd -r tailor && useradd -ms /bin/bash -g tailor -G sudo tailor
 RUN usermod -aG docker tailor
 RUN echo "tailor ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers
 
-# setup ources
+# Add package mirror
+# TODO(pbovbel) read this from configuration
 RUN apt-get install -y apt-transport-https apt-transport-s3 && \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 142D5F1683E1528B
 
@@ -105,12 +106,3 @@ RUN echo "${ANSIBLE_VAULT_PASS}" | tee /home/tailor/.vault_pass.txt
 RUN aws configure set aws_access_key_id ${AWS_ACCESS_KEY_ID} && \
     aws configure set aws_secret_access_key ${AWS_SECRET_ACCESS_KEY} && \
     aws configure set default.region ${AWS_DEFAULT_REGION}
-
-# configure workspace
-RUN mkdir -p ~/tools_ws/src && \
-    cd ~/tools_ws && \
-    catkin init && \
-    catkin config --cmake-args  -DCMAKE_CXX_FLAGS='-DNDEBUG -g -O3 -fext-numeric-literals' -DCMAKE_CXX_STANDARD='14' \
-      -DCMAKE_CXX_STANDARD_REQUIRED='ON' -DCMAKE_CXX_EXTENSIONS='ON' && \
-    catkin config --extend ${BUNDLE_ROOT}/ros1 && \
-    catkin config --install
