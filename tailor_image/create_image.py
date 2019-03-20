@@ -43,6 +43,7 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
         'OS_NAME': 'ubuntu',
         'OS_VERSION': distribution,
         'APT_REPO': apt_repo,
+        'RELEASE_LABEL': release_label,
         'RELEASE_TRACK': release_track,
         'ORGANIZATION': organization,
         'FLAVOUR': flavour,
