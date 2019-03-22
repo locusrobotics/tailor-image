@@ -55,9 +55,7 @@ RUN pip3 install \
     pytest \
     pytest-mypy \
     pytest-flake8 \
-    pytest-runner \
-    docker \
-    awscli
+    pytest-runner
 
 # Install packer
 RUN curl -sSL https://releases.hashicorp.com/packer/1.3.5/packer_1.3.5_linux_amd64.zip > packer.zip && \
