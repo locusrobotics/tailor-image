@@ -44,10 +44,11 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     # TODO(gservin): Only build bare_metal if we're on xenial for now, add a better check
     elif build_type == 'bare_metal' and publish and distribution == 'xenial':
         # Get information about base image
-        base_image_link = recipe[name]['base_image_link']
+        base_image = recipe[name]['base_image']
         base_image_checksum = recipe[name]['base_image_checksum']
         create_bare_metal_image(image_name=name, package=package, provision_file=provision_file, s3_bucket=apt_repo,
-                                base_image_link=base_image_link, base_image_checksum=base_image_checksum)
+                                release_track=release_track, base_image=base_image,
+                                base_image_checksum=base_image_checksum)
 
 
 def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo: str, release_track: str, flavour: str,
@@ -132,14 +133,14 @@ def process_docker_api_line(line):
         click.echo(line["status"], err=True)
 
 
-def create_bare_metal_image(image_name: str, package: str, provision_file: str, s3_bucket: str, base_image_link: str,
-                            base_image_checksum: str):
+def create_bare_metal_image(image_name: str, package: str, provision_file: str, s3_bucket: str, release_track: str,
+                            base_image: str, base_image_checksum: str):
     """Create bare metal image using packer and provisioned via ansible
     :param name: Name for the image
     :param package: Package containing the configuration files
     :param provision_file: Name of the ansible playbook to use to provision the image
     :param s3_bucket: S3 bucket to push the image to
-    :param base_image_link: URL from where to get the base image
+    :param base_image: Image name on the s3_bucket to use as base
     :param base_image_checksum: Checksum of the base image
     """
 
@@ -153,6 +154,12 @@ def create_bare_metal_image(image_name: str, package: str, provision_file: str, 
 
     os.environ['ANSIBLE_CONFIG'] = find_package(package, 'ansible.cfg')
 
+    # Get base image
+    s3_object = boto3.resource('s3')
+    base_image_local_path = '/tmp/' + base_image
+    base_image_key = release_track + '/images/' + base_image
+    s3_object.Bucket(s3_bucket).download_file(base_image_key, base_image_local_path)
+
     # Generate cloud.img
     run_command(['cloud-localds', cloud_img_path, cloud_cfg_path])
 
@@ -161,7 +168,7 @@ def create_bare_metal_image(image_name: str, package: str, provision_file: str, 
                '-var', f'playbook_file={provision_file_path}',
                '-var', f's3_bucket={s3_bucket}',
                '-var', f'cloud_image={cloud_img_path}',
-               '-var', f'iso_url={base_image_link}',
+               '-var', f'iso_url={base_image_local_path}',
                '-var', f'iso_checksum={base_image_checksum}',
                '-timestamp-ui',
                template_path]
