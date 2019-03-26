@@ -143,7 +143,7 @@ pipeline {
                     parent_image.inside("-v /var/run/docker.sock:/var/run/docker.sock --privileged " +
                                         "--env AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
                                         "--env AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY") {
-                      def use_sudo = config['build_type'] == 'docker' ? 'sudo -E' : ''
+                      def use_sudo = config['build_type'] == 'docker' ? 'sudo -E PYTHONPATH=$PYTHONPATH PATH=$PATH' : ''
                       sh("""#!/bin/bash
                             source \$BUNDLE_ROOT/ros1/setup.bash &&
                             ${use_sudo} create_image --name ${image} --distribution ${distribution} \
