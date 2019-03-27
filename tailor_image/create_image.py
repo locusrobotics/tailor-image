@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import base64
+import datetime
 import os
 import pathlib
 import sys
@@ -48,7 +49,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         base_image_checksum = recipe[name]['base_image_checksum']
         create_bare_metal_image(image_name=name, package=package, provision_file=provision_file, s3_bucket=apt_repo,
                                 release_track=release_track, release_label=release_label, base_image=base_image,
-                                base_image_checksum=base_image_checksum)
+                                base_image_checksum=base_image_checksum, organization=organization)
 
 
 def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo: str, release_track: str, flavour: str,
@@ -135,7 +136,7 @@ def process_docker_api_line(line):
 
 
 def create_bare_metal_image(image_name: str, package: str, provision_file: str, s3_bucket: str, release_track: str,
-        release_label: str, base_image: str, base_image_checksum: str):
+                            release_label: str, base_image: str, base_image_checksum: str, organization: str):
     """Create bare metal image using packer and provisioned via ansible
     :param name: Name for the image
     :param package: Package containing the configuration files
@@ -145,6 +146,7 @@ def create_bare_metal_image(image_name: str, package: str, provision_file: str, 
     :param base_image_checksum: Checksum of the base image
     :param release_track: The main release track to use for naming, packages, etc
     :param release_label: Contains the release_track + the label for the most current version
+    :param organization: Name of the organization
     """
 
     click.echo(f'Building bare metal image with: {provision_file}', err=True)
@@ -165,6 +167,10 @@ def create_bare_metal_image(image_name: str, package: str, provision_file: str, 
 
     # Generate cloud.img
     run_command(['cloud-localds', cloud_img_path, cloud_cfg_path])
+
+    # Generate image name
+    today = datetime.date.today().strftime('%Y%m%d')
+    image_name = '{}_{}_{}_{}'.format(organization, image_name, release_label, today)
 
     command = ['packer', 'build',
                '-var', f'vm_name={image_name}',
