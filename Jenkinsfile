@@ -92,6 +92,7 @@ pipeline {
             parent_image = docker.build(parent_image_label,
               "-f tailor-image/environment/Dockerfile --cache-from ${parent_image_label} " +
               "--build-arg APT_REPO=${params.apt_repo} " +
+              "--build-arg RELEASE_LABEL=${params.release_label} " +
               "--build-arg RELEASE_TRACK=${params.release_track} " +
               "--build-arg FLAVOUR=${testing_flavour} " +
               "--build-arg ORGANIZATION=${organization} " +
