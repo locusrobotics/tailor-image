@@ -37,9 +37,10 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     provision_file = recipe[name]['provision_file']
 
     if build_type == 'docker':
-        create_docker_image(name=name, dockerfile=provision_file, distribution=distribution, apt_repo=apt_repo,
-                            release_track=release_track, flavour=flavour, release_label=release_label,
-                            organization=organization, publish=publish, docker_registry=docker_registry)
+        create_docker_image(name=name, package=package, provision_file=provision_file, distribution=distribution,
+                            apt_repo=apt_repo, release_track=release_track, flavour=flavour,
+                            release_label=release_label, organization=organization, publish=publish,
+                            docker_registry=docker_registry)
 
     # Building takes around 1,5 hours, build only if publish is set to true
     # TODO(gservin): Only build bare_metal if we're on xenial for now, add a better check
@@ -52,11 +53,12 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
                                 base_image_checksum=base_image_checksum, organization=organization)
 
 
-def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo: str, release_track: str, flavour: str,
-                        release_label: str, organization: str, docker_registry: str, publish: bool):
+def create_docker_image(name: str, package: str, provision_file: str, distribution: str, apt_repo: str,
+                        release_track: str, flavour: str, release_label: str, organization: str, docker_registry: str,
+                        publish: bool):
     """Create docker images
     :param name: Name for the image
-    :param dockerfile: Dockerfile to use to build the image
+    :param provision_file: Name of the ansible playbook to use to provision the image
     :param distribution: Ubuntu distribution to build the image against
     :param apt_repo: APT repository to get debian packages from
     :param release_track: The main release track to use for naming, packages, etc
@@ -67,7 +69,7 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
     :param publish: Whether to publish the images
     """
 
-    click.echo(f'Building docker image with: {dockerfile}')
+    click.echo(f'Building docker image with: {provision_file}')
     docker_client = docker.from_env()
 
     ecr_client = boto3.client('ecr', region_name='us-east-1')
@@ -76,6 +78,9 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
 
     tag = 'tailor-image-' + name + '-' + distribution + '-' + release_label
     full_tag = docker_registry.replace('https://', '') + ':' + tag
+
+    # Find provision file
+    provision_file_path = find_package(package, 'image_recipes/' + provision_file)
 
     buildargs = {
         'OS_NAME': 'ubuntu',
@@ -92,7 +97,7 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
     # Build using provided dockerfile
     try:
         image, logs = docker_client.images.build(path='.',
-                                                 dockerfile=dockerfile,
+                                                 dockerfile=provision_file_path,
                                                  tag=full_tag,
                                                  nocache=True,
                                                  rm=True,
