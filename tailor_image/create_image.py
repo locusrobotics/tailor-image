@@ -86,6 +86,8 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
             '-var', f'iso_url={base_image_local_path}',
             '-var', f'iso_checksum={base_image_checksum}',
         ]
+    else:
+        return 0
 
     click.echo(f'Building {build_type} image with: {provision_file}', err=True)
 
