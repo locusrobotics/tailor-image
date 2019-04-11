@@ -48,7 +48,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
             '-var', f'image_name={image_name}',
             '-var', f'ecr_server={ecr_server}',
             '-var', f'ecr_repository={ecr_repository}',
-            '-var', f'aws_access_key={os.environ["AWS_SECRET_ACCESS_KEY"]}',
+            '-var', f'aws_access_key={os.environ["AWS_ACCESS_KEY_ID"]}',
             '-var', f'aws_secret_key={os.environ["AWS_SECRET_ACCESS_KEY"]}'
         ]
 
