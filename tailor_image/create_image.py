@@ -46,6 +46,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         extra_vars = [
             '-var', f'bundle_flavour={flavour}',
             '-var', f'image_name={image_name}',
+            '-var', f'organization={organization}',
             '-var', f'ecr_server={ecr_server}',
             '-var', f'ecr_repository={ecr_repository}',
             '-var', f'aws_access_key={os.environ["AWS_ACCESS_KEY_ID"]}',
