@@ -35,7 +35,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     build_type = recipe[name]['build_type']
     package = recipe[name]['package']
     provision_file = recipe[name]['provision_file']
-    template_path = find_package(package, 'image_recipes/{0}/{0}.json'.format(name))
+    template_path = find_package(package, f'image_recipes/{name}/{name}.json')
     extra_vars = []  # type: List[Any]
 
     if build_type == 'docker':
@@ -63,7 +63,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         base_image = recipe[name]['base_image']
         base_image_checksum = recipe[name]['base_image_checksum']
 
-        cloud_cfg_path = find_package(package, 'image_recipes/bare_metal/cloud.cfg')
+        cloud_cfg_path = find_package(package, f'image_recipes/{name}/cloud.cfg')
         cloud_img_path = '/tmp/cloud.cfg'
 
         # Get base image
@@ -77,7 +77,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
 
         # Generate image name
         today = datetime.date.today().strftime('%Y%m%d')
-        image_name = '{}_{}_{}_{}'.format(organization, name, release_label, today)
+        image_name = f'{organization}_{name}_{release_label}_{today}'
 
         extra_vars = [
             '-var', f'vm_name={image_name}',
