@@ -9,6 +9,7 @@ from typing import Any, List
 import argparse
 import boto3
 import click
+import psutil
 import yaml
 
 from catkin.find_in_workspaces import find_in_workspaces
@@ -85,6 +86,8 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
             '-var', f'cloud_image={cloud_img_path}',
             '-var', f'iso_url={base_image_local_path}',
             '-var', f'iso_checksum={base_image_checksum}',
+            '-var', f'cpu_count="{psutil.cpu_count()}"',
+            '-var', f'memory="{psutil.virtual_memory().total>>20}"',
         ]
     else:
         return 0
