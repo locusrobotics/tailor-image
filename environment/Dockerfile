@@ -42,6 +42,7 @@ RUN apt-get update -qq && apt-get install -qqy \
     apt-transport-https \
     ca-certificates \
     curl \
+    gcc \
     iptables \
     lxc \
     openssh-client \
