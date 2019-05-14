@@ -86,8 +86,8 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
             '-var', f'cloud_image={cloud_img_path}',
             '-var', f'iso_url={base_image_local_path}',
             '-var', f'iso_checksum={base_image_checksum}',
-            '-var', f'cpu_count="{psutil.cpu_count()}"',
-            '-var', f'memory="{psutil.virtual_memory().total>>20}"',
+            '-var', f'cpu_count={psutil.cpu_count()}',
+            '-var', f'memory={psutil.virtual_memory().available>>20}',
         ]
     else:
         return 0
