@@ -9,7 +9,6 @@ from typing import Any, List
 import argparse
 import boto3
 import click
-import psutil
 import yaml
 
 from catkin.find_in_workspaces import find_in_workspaces
@@ -62,19 +61,12 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     elif build_type == 'bare_metal' and publish and distribution == 'xenial':
         # Get information about base image
         base_image = recipe[name]['base_image']
-        base_image_checksum = recipe[name]['base_image_checksum']
-
-        cloud_cfg_path = find_package(package, f'image_recipes/{name}/cloud.cfg')
-        cloud_img_path = '/tmp/cloud.cfg'
 
         # Get base image
         s3_object = boto3.resource('s3')
         base_image_local_path = '/tmp/' + base_image
         base_image_key = release_track + '/images/' + base_image
         s3_object.Bucket(apt_repo).download_file(base_image_key, base_image_local_path)
-
-        # Generate cloud.img
-        run_command(['cloud-localds', cloud_img_path, cloud_cfg_path])
 
         # Generate image name
         today = datetime.date.today().strftime('%Y%m%d')
@@ -83,12 +75,22 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         extra_vars = [
             '-var', f'vm_name={image_name}',
             '-var', f's3_bucket={apt_repo}',
-            '-var', f'cloud_image={cloud_img_path}',
-            '-var', f'iso_url={base_image_local_path}',
-            '-var', f'iso_checksum={base_image_checksum}',
-            '-var', f'cpu_count={psutil.cpu_count()}',
-            '-var', f'memory={psutil.virtual_memory().available>>20}',
+            '-var', f'iso_image={base_image_local_path}'
         ]
+
+        # Enable nbd kernel module, necesary for qemu's packer chroot builder
+        run_command(['modprobe', 'nbd'])
+
+        # Resize image
+        run_command(['qemu-img', 'resize', base_image_local_path, '+9G'])
+
+        # Copy image
+        tmp_image = base_image_local_path.replace('disk1', 'disk1-resized')
+        run_command(['cp', base_image_local_path, tmp_image])
+
+        # Resize partition inside qcow image
+        run_command(['virt-resize', '--expand', '/dev/sda1', base_image_local_path, tmp_image])
+        run_command(['mv', tmp_image, base_image_local_path])
     else:
         return 0
 
