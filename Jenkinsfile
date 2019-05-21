@@ -92,11 +92,11 @@ pipeline {
                             string(credentialsId: 'ansible_vault_password', variable: 'ANSIBLE_VAULT_PASS')]) {
             parent_image = docker.build(parent_image_label,
               "-f tailor-image/environment/Dockerfile --cache-from ${parent_image_label} " +
-              "--build-arg APT_REPO=${params.apt_repo} " +
-              "--build-arg RELEASE_LABEL=${params.release_label} " +
-              "--build-arg RELEASE_TRACK=${params.release_track} " +
-              "--build-arg FLAVOUR=${testing_flavour} " +
-              "--build-arg ORGANIZATION=${organization} " +
+              "--build-arg APT_REPO=s3://locus-tailor-artifacts " +
+              "--build-arg RELEASE_LABEL=hotdog " +
+              "--build-arg RELEASE_TRACK=hotdog " +
+              "--build-arg FLAVOUR=dev " +
+              "--build-arg ORGANIZATION=locusrobotics " +
               "--build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
               "--build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY " +
               "--build-arg ANSIBLE_VAULT_PASS=$ANSIBLE_VAULT_PASS .")
@@ -149,8 +149,8 @@ pipeline {
                       sh("""#!/bin/bash
                             sudo -E PYTHONPATH=\$PYTHONPATH PATH=\$PATH create_image --name ${image} \
                             --distribution ${distribution} --apt-repo ${params.apt_repo - 's3://'} \
-                            --release-track ${params.release_track} --release-label ${params.release_label} \
-                            --flavour ${testing_flavour} --organization ${organization} ${params.deploy ? '--publish' : ''} \
+                            --release-track hotdog --release-label hotdog \
+                            --flavour dev --organization ${organization} ${params.deploy ? '--publish' : ''} \
                             --docker-registry ${params.docker_registry} --rosdistro-path /rosdistro
                          """)
                     }

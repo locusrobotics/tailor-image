@@ -72,7 +72,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         if not publish:
             extra_vars += ['-except', 'publish']
 
-    elif build_type == 'bare_metal' and publish and distribution == 'xenial':
+    elif build_type == 'bare_metal' and distribution == 'xenial':
         # Get information about base image
         base_image = recipe[name]['base_image'].replace('$distribution', distribution)
         optional_vars = []
