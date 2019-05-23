@@ -68,7 +68,7 @@ def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo:
     """
 
     click.echo(f'Building docker image with: {dockerfile}')
-    docker_client = docker.from_env()
+    docker_client = docker.from_env(timeout=600)
 
     ecr_client = boto3.client('ecr', region_name='us-east-1')
     token = ecr_client.get_authorization_token()
