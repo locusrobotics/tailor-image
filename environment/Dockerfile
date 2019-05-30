@@ -60,7 +60,7 @@ RUN pip3 install \
     pytest-runner
 
 # Install packer
-RUN curl -sSL https://releases.hashicorp.com/packer/1.4.0/packer_1.4.0_linux_amd64.zip > packer.zip && \
+RUN curl -sSL https://releases.hashicorp.com/packer/1.4.1/packer_1.4.1_linux_amd64.zip > packer.zip && \
     unzip packer.zip -d /usr/local/bin && \
     rm packer.zip
 
