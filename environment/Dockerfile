@@ -44,9 +44,11 @@ RUN apt-get update -qq && apt-get install -qqy \
     curl \
     gcc \
     iptables \
+    libguestfs-tools \
     lxc \
     openssh-client \
     unzip \
+    wget \
     xz-utils
 
 # Install Docker from Docker Inc. repositories.
@@ -63,9 +65,9 @@ RUN pip3 install \
 RUN curl -sSL https://releases.hashicorp.com/packer/1.4.1/packer_1.4.1_linux_amd64.zip > packer.zip && \
     unzip packer.zip -d /usr/local/bin && \
     rm packer.zip
-
-# Install qemu
-RUN apt update -qq && apt install --no-install-recommends -y qemu-system-x86 cloud-utils
+RUN curl -sSlL https://github.com/summerwind/packer-builder-qemu-chroot/releases/download/v1.1.0/packer-builder-qemu-chroot_linux_amd64.tar.gz > packer_qemu_chroot.tar.gz && \
+    tar xf packer_qemu_chroot.tar.gz && mv packer-builder-qemu-chroot /usr/local/bin/packer-builder-qemu-chroot && \
+    rm packer_qemu_chroot.tar.gz
 
 COPY tailor-image tailor-image
 RUN pip3 install -e tailor-image

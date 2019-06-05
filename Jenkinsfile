@@ -141,16 +141,16 @@ pipeline {
                   }
 
                   withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
-                    parent_image.inside("-v /var/run/docker.sock:/var/run/docker.sock --privileged " +
+                    parent_image.inside("-v /var/run/docker.sock:/var/run/docker.sock -v /lib/modules:/lib/modules " +
+                                        "-v /dev:/dev -v /boot:/boot --cap-add=ALL --privileged " +
                                         "--env AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
                                         "--env AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY") {
-                      def use_sudo = config['build_type'] == 'docker' ? 'sudo -E PYTHONPATH=$PYTHONPATH PATH=$PATH' : ''
                       sh("""#!/bin/bash
                             source \$BUNDLE_ROOT/ros1/setup.bash &&
-                            ${use_sudo} create_image --name ${image} --distribution ${distribution} \
-                            --apt-repo ${params.apt_repo - 's3://'} --release-track ${params.release_track} \
-                            --release-label ${params.release_label} --flavour ${testing_flavour} \
-                            --organization ${organization} ${params.deploy ? '--publish' : ''} \
+                            sudo -E PYTHONPATH=\$PYTHONPATH PATH=\$PATH create_image --name ${image} \
+                            --distribution ${distribution} --apt-repo ${params.apt_repo - 's3://'} \
+                            --release-track ${params.release_track} --release-label ${params.release_label} \
+                            --flavour ${testing_flavour} --organization ${organization} ${params.deploy ? '--publish' : ''} \
                             --docker-registry ${params.docker_registry} --rosdistro-path /rosdistro
                          """)
                     }
