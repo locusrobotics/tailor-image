@@ -116,7 +116,7 @@ pipeline {
         cleanup {
           deleteDir()
           // If two docker prunes run simultaneously, one will fail, hence || true
-          sh('docker image prune -af --filter="until=3h" --filter="label=tailor" || true')
+          sh('docker image prune -af --filter="until=24h" --filter="label=tailor" || true')
         }
       }
     }
@@ -157,7 +157,7 @@ pipeline {
                   }
                 } finally {
                   deleteDir()
-                  sh 'docker image prune -af --filter="until=3h" --filter="label=tailor" || true'
+                  sh 'docker image prune -af --filter="until=24h" --filter="label=tailor" || true'
                 }
               }}]
             }
