@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import datetime
+import json
 import os
 import pathlib
 import sys
@@ -8,6 +9,7 @@ from typing import Any, List
 
 import argparse
 import boto3
+import botocore
 import click
 import yaml
 
@@ -36,6 +38,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     package = recipe[name]['package']
     provision_file = recipe[name]['provision_file']
     template_path = find_package(package, f'image_recipes/{name}/{name}.json')
+    today = datetime.date.today().strftime('%Y%m%d')
     extra_vars = []  # type: List[Any]
 
     if build_type == 'docker':
@@ -56,20 +59,17 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         if not publish:
             extra_vars += ['-except', 'publish']
 
-    # Building takes around 1,5 hours, build only if publish is set to true
     # TODO(gservin): Only build bare_metal if we're on xenial for now, add a better check
     elif build_type == 'bare_metal' and publish and distribution == 'xenial':
         # Get information about base image
         base_image = recipe[name]['base_image']
 
         # Get base image
-        s3_object = boto3.resource('s3')
         base_image_local_path = '/tmp/' + base_image
         base_image_key = release_track + '/images/' + base_image
-        s3_object.Bucket(apt_repo).download_file(base_image_key, base_image_local_path)
+        boto3.resource('s3').Bucket(apt_repo).download_file(base_image_key, base_image_local_path)
 
         # Generate image name
-        today = datetime.date.today().strftime('%Y%m%d')
         image_name = f'{organization}_{name}_{release_label}_{today}'
 
         extra_vars = [
@@ -107,6 +107,30 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
                '-var', f'bundle_version={release_label}'] + extra_vars + ['-timestamp-ui', template_path]
 
     run_command(command)
+
+    if build_type == 'bare_metal' and publish and distribution == 'xenial':
+        update_image_index(release_track, release_label, apt_repo, today)
+
+
+def update_image_index(release_track, release_label, apt_repo, today):
+    index_local_path = '/tmp/index'
+    index_key = release_track + '/images/index'
+    try:
+        boto3.resource('s3').Bucket(apt_repo).download_file(index_key, index_local_path)
+    except botocore.exceptions.ClientError as error:
+        # If file doesn't exists, create a new one
+        if error.response['Error']['Code'] == "404":
+            with open(index_local_path, 'a+') as json_file:
+                json.dump({'latest': {}}, json_file, ensure_ascii=True, indent=2)
+
+    with open(index_local_path, 'r') as json_file:
+        data = json.load(json_file)
+        data['latest'][release_label] = today
+
+    with open(index_local_path, 'w') as json_file:
+        json.dump(data, json_file, ensure_ascii=True, indent=2)
+
+    boto3.resource('s3').Bucket(apt_repo).upload_file(index_local_path, index_key)
 
 
 def find_package(package_name: str, filename: str):
