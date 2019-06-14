@@ -128,7 +128,7 @@ def update_image_index(distribution, release_track, release_label, apt_repo, tod
         if error.response['Error']['Code'] == "404":
             pass
 
-    if not release_label in data['latest']:
+    if release_label not in data['latest']:
         data['latest'][release_label] = {distribution: today}
     else:
         data['latest'][release_label][distribution] = today
