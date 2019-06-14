@@ -108,24 +108,29 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
 
     run_command(command)
 
+    # TODO(gservin): If we build more that one bare metal image at the same time, we can have a race condition here
     if build_type == 'bare_metal' and publish and distribution == 'xenial':
-        update_image_index(release_track, release_label, apt_repo, today)
+        update_image_index(distribution, release_track, release_label, apt_repo, today)
 
 
-def update_image_index(release_track, release_label, apt_repo, today):
+def update_image_index(distribution, release_track, release_label, apt_repo, today):
     index_local_path = '/tmp/index'
     index_key = release_track + '/images/index'
+    data = {'latest': {release_label: {distribution: ''}}}
     try:
         boto3.resource('s3').Bucket(apt_repo).download_file(index_key, index_local_path)
     except botocore.exceptions.ClientError as error:
         # If file doesn't exists, create a new one
         if error.response['Error']['Code'] == "404":
             with open(index_local_path, 'a+') as json_file:
-                json.dump({'latest': {}}, json_file, ensure_ascii=True, indent=2)
+                json.dump(data, json_file, ensure_ascii=True, indent=2)
 
     with open(index_local_path, 'r') as json_file:
         data = json.load(json_file)
-        data['latest'][release_label] = today
+        if not release_label in data['latest']:
+            data['latest'][release_label] = {distribution: today}
+        else:
+            data['latest'][release_label][distribution] = today
 
     with open(index_local_path, 'w') as json_file:
         json.dump(data, json_file, ensure_ascii=True, indent=2)
