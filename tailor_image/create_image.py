@@ -59,8 +59,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         if not publish:
             extra_vars += ['-except', 'publish']
 
-    # TODO(gservin): Only build bare_metal if we're on xenial for now, add a better check
-    elif build_type == 'bare_metal' and publish and distribution == 'xenial':
+    elif build_type == 'bare_metal' and publish:
         # Get information about base image
         base_image = recipe[name]['base_image']
 
@@ -70,7 +69,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         boto3.resource('s3').Bucket(apt_repo).download_file(base_image_key, base_image_local_path)
 
         # Generate image name
-        image_name = f'{organization}_{name}_{release_label}_{today}'
+        image_name = f'{organization}_{name}_{distribution}_{release_label}_{today}'
 
         extra_vars = [
             '-var', f'vm_name={image_name}',
