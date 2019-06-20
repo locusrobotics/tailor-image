@@ -107,7 +107,8 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
 
     run_command(command)
 
-    if build_type == 'bare_metal' and publish:
+    # TODO(gservin): If we build more that one bare metal image at the same time, we can have a race condition here
+    if build_type == 'bare_metal' and publish and distribution == 'xenial':
         update_image_index(distribution, release_track, release_label, apt_repo, today)
 
 
