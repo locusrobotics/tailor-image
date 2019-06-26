@@ -33,6 +33,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     """
 
     # Read configuration files
+    common_config = yaml.safe_load((rosdistro_path / 'config/recipes.yaml').open())['common']
     recipe = yaml.safe_load((rosdistro_path / 'config/images.yaml').open())['images']
     build_type = recipe[name]['build_type']
     package = recipe[name]['package']
@@ -110,10 +111,10 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
 
     # TODO(gservin): If we build more that one bare metal image at the same time, we can have a race condition here
     if build_type == 'bare_metal' and publish and distribution == 'xenial':
-        update_image_index(distribution, release_track, release_label, apt_repo, today)
+        update_image_index(distribution, release_track, release_label, apt_repo, today, common_config)
 
 
-def update_image_index(distribution, release_track, release_label, apt_repo, today):
+def update_image_index(distribution, release_track, release_label, apt_repo, today, common_config):
     index_key = release_track + '/images/index'
     s3_object = boto3.resource("s3").Bucket(apt_repo)
     json.load_s3 = lambda f: json.load(s3_object.Object(key=f).get()["Body"])
@@ -134,6 +135,21 @@ def update_image_index(distribution, release_track, release_label, apt_repo, tod
         data['latest'][release_label][distribution] = today
 
     json.dump_s3(data, index_key)
+
+    # Invalidate image index cache
+    if 'cloudfront_distribution_id' in common_config:
+        distribution_id = common_config['cloudfront_distribution_id']
+        client = boto3.client('cloudfront')
+        client.create_invalidation(DistributionId=distribution_id,
+                                   InvalidationBatch={
+                                       'Paths': {
+                                           'Quantity': 1,
+                                           'Items': [
+                                               f'/{index_key}',
+                                           ]
+                                       },
+                                       'CallerReference':  datetime.date.today().strftime('%Y%m%d%H%M%S')
+                                   })
 
 
 def find_package(package_name: str, filename: str):
