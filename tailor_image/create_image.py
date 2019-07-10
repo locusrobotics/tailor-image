@@ -121,8 +121,8 @@ def update_image_index(release_track, apt_repo, common_config, image_name):
     _, _, distribution, release_label, _ = image_name.split('_')
 
     # Read checksum from generated file
-    with open(f'/tmp/{image_name}', 'r') as file:
-        checksum = file.read().replace('\n', '').split(' ')[0]
+    with open(f'/tmp/{image_name}', 'r') as checksum_file:
+        checksum = checksum_file.read().replace('\n', '').split(' ')[0]
     os.remove(f'/tmp/{image_name}')
 
     data = {'latest': {release_label: {distribution: ''}}}
