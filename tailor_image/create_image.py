@@ -13,8 +13,7 @@ import botocore
 import click
 import yaml
 
-from catkin.find_in_workspaces import find_in_workspaces
-from . import run_command
+from . import find_package, run_command
 
 
 def create_image(name: str, distribution: str, apt_repo: str, release_track: str, release_label: str, flavour: str,
@@ -111,14 +110,20 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
 
     # TODO(gservin): If we build more that one bare metal image at the same time, we can have a race condition here
     if build_type == 'bare_metal' and publish and distribution == 'xenial':
-        update_image_index(distribution, release_track, release_label, apt_repo, today, common_config)
+        update_image_index(release_track, apt_repo, common_config, image_name)
 
 
-def update_image_index(distribution, release_track, release_label, apt_repo, today, common_config):
+def update_image_index(release_track, apt_repo, common_config, image_name):
     index_key = release_track + '/images/index'
     s3_object = boto3.resource("s3").Bucket(apt_repo)
     json.load_s3 = lambda f: json.load(s3_object.Object(key=f).get()["Body"])
     json.dump_s3 = lambda obj, f: s3_object.Object(key=f).put(Body=json.dumps(obj, indent=2))
+    _, _, distribution, release_label, _ = image_name.split('_')
+
+    # Read checksum from generated file
+    with open(f'/tmp/{image_name}', 'r') as checksum_file:
+        checksum = checksum_file.read().replace('\n', '').split(' ')[0]
+    os.remove(f'/tmp/{image_name}')
 
     data = {'latest': {release_label: {distribution: ''}}}
 
@@ -129,10 +134,14 @@ def update_image_index(distribution, release_track, release_label, apt_repo, tod
         if error.response['Error']['Code'] == "404":
             pass
 
+    # Update latest image
     if release_label not in data['latest']:
-        data['latest'][release_label] = {distribution: today}
+        data['latest'][release_label] = {distribution: image_name}
     else:
-        data['latest'][release_label][distribution] = today
+        data['latest'][release_label][distribution] = image_name
+
+    # Add checksum for new image
+    data[image_name] = checksum
 
     json.dump_s3(data, index_key)
 
@@ -150,16 +159,6 @@ def update_image_index(distribution, release_track, release_label, apt_repo, tod
                                        },
                                        'CallerReference':  datetime.date.today().strftime('%Y%m%d%H%M%S')
                                    })
-
-
-def find_package(package_name: str, filename: str):
-    package_path = find_in_workspaces(
-        project=package_name,
-        path=filename,
-        first_match_only=True,
-    )[0]
-
-    return package_path
 
 
 def main():
