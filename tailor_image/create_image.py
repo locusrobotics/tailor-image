@@ -13,7 +13,8 @@ import botocore
 import click
 import yaml
 
-from . import find_package, run_command
+from catkin.find_in_workspaces import find_in_workspaces
+from . import run_command
 
 
 def create_image(name: str, distribution: str, apt_repo: str, release_track: str, release_label: str, flavour: str,
@@ -159,6 +160,16 @@ def update_image_index(release_track, apt_repo, common_config, image_name):
                                        },
                                        'CallerReference':  datetime.date.today().strftime('%Y%m%d%H%M%S')
                                    })
+
+
+def find_package(package_name: str, filename: str):
+    package_path = find_in_workspaces(
+        project=package_name,
+        path=filename,
+        first_match_only=True,
+    )[0]
+
+    return package_path
 
 
 def main():
