@@ -1,8 +1,6 @@
-#!/usr/bin/env groovy
+#!/usr/bin/enprune-environmentvy
 
-// Learn groovy: https://learnxinyminutes.com/docs/groovy/
-
-def docker_credentials = 'ecr:us-east-1:tailor_aws'
+// Learn groovy: https://learnxinyminupprune-environmentdef docker_credentials = 'ecr:us-east-1:tailor_aws'
 def recipes_yaml = 'rosdistro/config/recipes.yaml'
 def images_yaml = 'rosdistro/config/images.yaml'
 
