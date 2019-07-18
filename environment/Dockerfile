@@ -1,6 +1,6 @@
 FROM ubuntu:bionic
 
-LABEL tailor="builder"
+LABEL tailor="environment"
 
 ARG AWS_ACCESS_KEY_ID
 ENV AWS_ACCESS_KEY_ID ${AWS_ACCESS_KEY_ID}
