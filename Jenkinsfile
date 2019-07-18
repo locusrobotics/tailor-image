@@ -23,6 +23,7 @@ pipeline {
     string(name: 'num_to_keep', defaultValue: '10')
     string(name: 'days_to_keep', defaultValue: '10')
     string(name: 'docker_registry')
+    string(name: 'tailor_meta')
     string(name: 'apt_repo')
     booleanParam(name: 'deploy', defaultValue: false)
   }
@@ -114,9 +115,9 @@ pipeline {
           junit(testResults: 'tailor-image/test-results.xml')
         }
         cleanup {
+          library("tailor-meta@${params.tailor_meta}")
+          cleanDocker()
           deleteDir()
-          // If two docker prunes run simultaneously, one will fail, hence || true
-          sh('docker image prune -af --filter="until=24h" --filter="label=tailor" || true')
         }
       }
     }
@@ -156,8 +157,9 @@ pipeline {
                     }
                   }
                 } finally {
+                  library("tailor-meta@${params.tailor_meta}")
+                  cleanDocker()
                   deleteDir()
-                  sh 'docker image prune -af --filter="until=24h" --filter="label=tailor" || true'
                 }
               }}]
             }
