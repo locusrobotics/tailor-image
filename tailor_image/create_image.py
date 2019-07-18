@@ -13,12 +13,11 @@ import botocore
 import click
 import yaml
 
-from catkin.find_in_workspaces import find_in_workspaces
-from . import run_command
+from . import find_package, run_command
 
 
 def create_image(name: str, distribution: str, apt_repo: str, release_track: str, release_label: str, flavour: str,
-                 organization: str, docker_registry: str, rosdistro_path: pathlib.Path, publish: bool = False):
+                 organization: str, docker_registry: str, publish: bool = False):
     """Create different type of images based on recipes
     :param name: Name for the image
     :param distribution: Ubuntu distribution to build the image against
@@ -28,17 +27,18 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     :param flavour: Bundle flavour to install on the images
     :param organization: Name of the organization
     :param docker_registry: URL for the docker registry to use to push images from/to
-    :param rosdistro_path: Path for the rosdistro configuration files
     :param publish: Whether to publish the images
     """
 
     # Read configuration files
+    rosdistro_path = pathlib.Path('/rosdistro')
     common_config = yaml.safe_load((rosdistro_path / 'config/recipes.yaml').open())['common']
     recipe = yaml.safe_load((rosdistro_path / 'config/images.yaml').open())['images']
+    distro = recipe[name]['distro']
     build_type = recipe[name]['build_type']
     package = recipe[name]['package']
     provision_file = recipe[name]['provision_file']
-    template_path = find_package(package, f'image_recipes/{name}/{name}.json')
+    template_path = find_package(package, f'image_recipes/{name}/{name}.json', distro)
     today = datetime.date.today().strftime('%Y%m%d')
     extra_vars = []  # type: List[Any]
 
@@ -98,9 +98,9 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     click.echo(f'Building {build_type} image with: {provision_file}', err=True)
 
     # Get path to the different files needed
-    provision_file_path = find_package(package, 'playbooks/' + provision_file)
+    provision_file_path = find_package(package, 'playbooks/' + provision_file, distro)
 
-    os.environ['ANSIBLE_CONFIG'] = find_package(package, 'ansible.cfg')
+    os.environ['ANSIBLE_CONFIG'] = find_package(package, 'ansible.cfg', distro)
 
     command = ['packer', 'build',
                '-var', f'playbook_file={provision_file_path}',
@@ -162,16 +162,6 @@ def update_image_index(release_track, apt_repo, common_config, image_name):
                                    })
 
 
-def find_package(package_name: str, filename: str):
-    package_path = find_in_workspaces(
-        project=package_name,
-        path=filename,
-        first_match_only=True,
-    )[0]
-
-    return package_path
-
-
 def main():
     parser = argparse.ArgumentParser(description=create_image.__doc__)
     parser.add_argument('--name', type=str, required=True)
@@ -183,7 +173,6 @@ def main():
     parser.add_argument('--organization', type=str)
     parser.add_argument('--publish', action='store_true')
     parser.add_argument('--docker-registry', type=str)
-    parser.add_argument('--rosdistro-path', type=pathlib.Path)
 
     args = parser.parse_args()
 
