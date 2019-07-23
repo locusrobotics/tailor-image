@@ -13,7 +13,7 @@ import botocore
 import click
 import yaml
 
-from . import find_package, run_command
+from . import find_package, run_command, source_file
 
 
 def create_image(name: str, distribution: str, apt_repo: str, release_track: str, release_label: str, flavour: str,
@@ -38,7 +38,8 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     build_type = recipe[name]['build_type']
     package = recipe[name]['package']
     provision_file = recipe[name]['provision_file']
-    template_path = find_package(package, f'image_recipes/{name}/{name}.json', distro)
+    env = source_file(f'{os.environ["BUNDLE_ROOT"]}/{distro}/setup.bash')
+    template_path = find_package(package, f'image_recipes/{name}/{name}.json', env)
     today = datetime.date.today().strftime('%Y%m%d')
     extra_vars = []  # type: List[Any]
 
@@ -70,15 +71,6 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         base_image_key = release_track + '/images/' + base_image
         boto3.resource('s3').Bucket(apt_repo).download_file(base_image_key, base_image_local_path)
 
-        # Generate image name
-        image_name = f'{organization}_{name}_{distribution}_{release_label}_{today}'
-
-        extra_vars = [
-            '-var', f'vm_name={image_name}',
-            '-var', f's3_bucket={apt_repo}',
-            '-var', f'iso_image={base_image_local_path}'
-        ]
-
         # Enable nbd kernel module, necesary for qemu's packer chroot builder
         run_command(['modprobe', 'nbd'])
 
@@ -92,22 +84,32 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         # Resize partition inside qcow image
         run_command(['virt-resize', '--expand', '/dev/sda1', base_image_local_path, tmp_image])
         run_command(['mv', tmp_image, base_image_local_path])
+
+        # Generate image name
+        image_name = f'{organization}_{name}_{distribution}_{release_label}_{today}'
+
+        extra_vars = [
+            '-var', f'vm_name={image_name}',
+            '-var', f's3_bucket={apt_repo}',
+            '-var', f'iso_image={base_image_local_path}'
+        ]
+
     else:
         return 0
 
     click.echo(f'Building {build_type} image with: {provision_file}', err=True)
 
     # Get path to the different files needed
-    provision_file_path = find_package(package, 'playbooks/' + provision_file, distro)
+    provision_file_path = find_package(package, 'playbooks/' + provision_file, env)
 
-    os.environ['ANSIBLE_CONFIG'] = find_package(package, 'ansible.cfg', distro)
+    env['ANSIBLE_CONFIG'] = find_package(package, 'ansible.cfg', env)
 
     command = ['packer', 'build',
                '-var', f'playbook_file={provision_file_path}',
                '-var', f'bundle_track={release_track}',
                '-var', f'bundle_version={release_label}'] + extra_vars + ['-timestamp-ui', template_path]
 
-    run_command(command)
+    run_command(command, env=env)
 
     # TODO(gservin): If we build more that one bare metal image at the same time, we can have a race condition here
     if build_type == 'bare_metal' and publish and distribution == 'xenial':

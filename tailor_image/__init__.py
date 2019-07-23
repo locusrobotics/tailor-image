@@ -6,11 +6,10 @@ import sys
 import subprocess
 
 
-def find_package(package: str, path: str, distro: str):
-    source_file(f'{os.environ["BUNDLE_ROOT"]}/{distro}/setup.bash')
+def find_package(package: str, path: str, env):
     path = run_command(['catkin_find', package, path, '--first-only'],
                        stdout=subprocess.PIPE,
-                       env=os.environ.copy()).stdout.decode().replace('\n', '')
+                       env=env).stdout.decode().replace('\n', '')
     return path
 
 
@@ -22,4 +21,4 @@ def run_command(cmd, *args, **kwargs):
 def source_file(path):
     dump = '/usr/bin/python -c "import os, json; print json.dumps(dict(os.environ))"'
     pipe = subprocess.Popen(['/bin/bash', '-c', f'source {path} && {dump}'], stdout=subprocess.PIPE)
-    os.environ.update(json.loads(pipe.stdout.read()))
+    return json.loads(pipe.stdout.read())
