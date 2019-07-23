@@ -150,7 +150,7 @@ pipeline {
                             --distribution ${distribution} --apt-repo ${params.apt_repo - 's3://'} \
                             --release-track ${params.release_track} --release-label ${params.release_label} \
                             --flavour ${testing_flavour} --organization ${organization} ${params.deploy ? '--publish' : ''} \
-                            --docker-registry ${params.docker_registry}
+                            --docker-registry ${params.docker_registry} --rosdistro-path /rosdistro
                          """)
                     }
                   }

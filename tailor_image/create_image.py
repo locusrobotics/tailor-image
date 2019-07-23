@@ -17,7 +17,7 @@ from . import find_package, run_command
 
 
 def create_image(name: str, distribution: str, apt_repo: str, release_track: str, release_label: str, flavour: str,
-                 organization: str, docker_registry: str, publish: bool = False):
+                 organization: str, docker_registry: str, rosdistro_path: pathlib.Path, publish: bool = False):
     """Create different type of images based on recipes
     :param name: Name for the image
     :param distribution: Ubuntu distribution to build the image against
@@ -27,11 +27,11 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     :param flavour: Bundle flavour to install on the images
     :param organization: Name of the organization
     :param docker_registry: URL for the docker registry to use to push images from/to
+    :param rosdistro_path: Path for the rosdistro configuration files
     :param publish: Whether to publish the images
     """
 
     # Read configuration files
-    rosdistro_path = pathlib.Path('/rosdistro')
     common_config = yaml.safe_load((rosdistro_path / 'config/recipes.yaml').open())['common']
     recipe = yaml.safe_load((rosdistro_path / 'config/images.yaml').open())['images']
     distro = recipe[name]['distro']
@@ -173,6 +173,7 @@ def main():
     parser.add_argument('--organization', type=str)
     parser.add_argument('--publish', action='store_true')
     parser.add_argument('--docker-registry', type=str)
+    parser.add_argument('--rosdistro-path', type=pathlib.Path)
 
     args = parser.parse_args()
 
