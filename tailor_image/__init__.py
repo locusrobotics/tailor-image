@@ -1,7 +1,6 @@
 __version__ = '0.0.0'
 
 import json
-import os
 import sys
 import subprocess
 
