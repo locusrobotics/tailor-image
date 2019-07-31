@@ -160,7 +160,7 @@ def update_image_index(release_track, apt_repo, common_config, image_name):
                                                f'/{index_key}',
                                            ]
                                        },
-                                       'CallerReference':  datetime.date.today().strftime('%Y%m%d%H%M%S')
+                                       'CallerReference':  datetime.datetime.now().strftime('%Y%m%d%H%M%S')
                                    })
 
 
