@@ -64,7 +64,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
 
     elif build_type == 'bare_metal' and publish:
         # Get information about base image
-        base_image = recipe[name]['base_image']
+        base_image = recipe[name]['base_image'].replace('$distribution', distribution)
 
         # Get base image
         base_image_local_path = '/tmp/' + base_image
