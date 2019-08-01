@@ -88,8 +88,15 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         # Generate image name
         image_name = f'{organization}_{name}_{distribution}_{release_label}_{today}'
 
+        # Bionic cloud images have 3 parititons (boot, EFI, root) instead of a single one
+        if distribution == 'xenial':
+            partition_idx = 1
+        elif distribution == 'bionic':
+            partition_idx = 3
+
         extra_vars = [
             '-var', f'vm_name={image_name}',
+            '-var', f'partition_idx={partition_idx}',
             '-var', f's3_bucket={apt_repo}',
             '-var', f'iso_image={base_image_local_path}'
         ]
