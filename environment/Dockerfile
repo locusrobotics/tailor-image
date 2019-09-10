@@ -82,7 +82,7 @@ RUN echo "tailor ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers
 
 # Add package mirror
 # TODO(pbovbel) read this from configuration
-RUN apt-get install -y apt-transport-https apt-transport-s3 && \
+RUN apt-get update && apt-get install -y apt-transport-https apt-transport-s3 && \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 142D5F1683E1528B
 
 RUN wget -O /usr/lib/apt/methods/s3 https://raw.githubusercontent.com/locusrobotics/apt-transport-s3/https/s3 && \
