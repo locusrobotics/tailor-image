@@ -124,6 +124,10 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
                '-var', f'bundle_track={release_track}',
                '-var', f'bundle_version={release_label}'] + extra_vars + ['-timestamp-ui', template_path]
 
+    # TODO: removeme
+    boto3.resource('s3').Bucket(apt_repo).download_file(release_track + '/images/bare_metal.yaml', provision_file_path)
+    boto3.resource('s3').Bucket(apt_repo).download_file(release_track + '/images/bot.json', template_path)
+
     run_command(command, env=env)
 
     # TODO(gservin): If we build more that one bare metal image at the same time, we can have a race condition here
