@@ -6,10 +6,13 @@ import subprocess
 
 
 def find_package(package: str, path: str, env):
-    path = run_command(['catkin_find', package, path, '--first-only'],
-                       stdout=subprocess.PIPE,
-                       env=env).stdout.decode().replace('\n', '')
-    return path
+    try:
+        path = run_command(['catkin_find', package, path, '--first-only'],
+                           stdout=subprocess.PIPE,
+                           env=env).stdout.decode().replace('\n', '')
+        return path
+    except subprocess.CalledProcessError:
+        return None
 
 
 def run_command(cmd, *args, **kwargs):
