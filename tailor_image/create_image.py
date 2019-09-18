@@ -39,9 +39,23 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     package = recipe[name]['package']
     provision_file = recipe[name]['provision_file']
     env = source_file(f'{os.environ["BUNDLE_ROOT"]}/{distro}/setup.bash')
-    template_path = find_package(package, f'image_recipes/{name}/{name}.json', env)
     today = datetime.date.today().strftime('%Y%m%d')
     extra_vars = []  # type: List[Any]
+
+    # Get packer template
+    template_path = find_package(package, f'image_recipes/{name}/{name}.json', env)
+    if template_path is None:
+        template_path = f'/tailor-image/environment/image_recipes/{name}/{name}.json'
+
+    # Get playbook file
+    provision_file_path = find_package(package, 'playbooks/' + provision_file, env)
+    if provision_file_path is None:
+        provision_file_path = f'/tailor-image/environment/playbooks/{name}.yaml'
+
+    # Set ansible path
+    ansible_path = find_package(package, 'ansible.cfg', env)
+    if ansible_path is not None:
+        env['ANSIBLE_CONFIG'] = ansible_path
 
     if build_type == 'docker':
         image_name = f'tailor-image-{name}-{distribution}-{release_label}'
@@ -51,7 +65,6 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         extra_vars = [
             '-var', f'bundle_flavour={flavour}',
             '-var', f'image_name={image_name}',
-            '-var', f'organization={organization}',
             '-var', f'ecr_server={ecr_server}',
             '-var', f'os_version={distribution}',
             '-var', f'ecr_repository={ecr_repository}',
@@ -65,10 +78,15 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     elif build_type == 'bare_metal' and publish and distribution == 'xenial':
         # Get information about base image
         base_image = recipe[name]['base_image'].replace('$distribution', distribution)
+        username = recipe[name]['username']
+        password = recipe[name]['password']
+        ansible_command = recipe[name]['ansible_command']
+        extra_arguments_ansible = recipe[name]['extra_arguments_ansible']
 
         # Get base image
         base_image_local_path = '/tmp/' + base_image
         base_image_key = release_track + '/images/' + base_image
+        click.echo(f'Downloading image from {base_image_key}')
         boto3.resource('s3').Bucket(apt_repo).download_file(base_image_key, base_image_local_path)
 
         # Enable nbd kernel module, necesary for qemu's packer chroot builder
@@ -89,9 +107,14 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         image_name = f'{organization}_{name}_{distribution}_{release_label}_{today}'
 
         extra_vars = [
-            '-var', f'vm_name={image_name}',
+            '-var', f'image_name={image_name}',
             '-var', f's3_bucket={apt_repo}',
-            '-var', f'iso_image={base_image_local_path}'
+            '-var', f'iso_image={base_image_local_path}',
+            '-var', f'username={username}',
+            '-var', f'password={password}',
+            '-var', f'extra_arguments_ansible={extra_arguments_ansible}',
+            '-var', f'ansible_command={ansible_command}',
+
         ]
 
     else:
@@ -99,13 +122,9 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
 
     click.echo(f'Building {build_type} image with: {provision_file}', err=True)
 
-    # Get path to the different files needed
-    provision_file_path = find_package(package, 'playbooks/' + provision_file, env)
-
-    env['ANSIBLE_CONFIG'] = find_package(package, 'ansible.cfg', env)
-
     command = ['packer', 'build',
                '-var', f'playbook_file={provision_file_path}',
+               '-var', f'organization={organization}',
                '-var', f'bundle_track={release_track}',
                '-var', f'bundle_version={release_label}'] + extra_vars + ['-timestamp-ui', template_path]
 

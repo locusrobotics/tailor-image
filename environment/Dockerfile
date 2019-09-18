@@ -39,6 +39,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 
 # Let's start with some basic stuff.
 RUN apt-get update -qq && apt-get install -qqy \
+    ansible \
     apt-transport-https \
     ca-certificates \
     curl \
