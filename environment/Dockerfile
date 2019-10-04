@@ -52,7 +52,7 @@ RUN apt-get update -qq && apt-get install -qqy \
     xz-utils
 
 # Install Docker from Docker Inc. repositories.
-RUN curl -sSL https://get.docker.com/ | sh
+RUN curl -sSL https://get.docker.com/ | VERSION=5:19.03.2 sh
 
 RUN pip3 install \
     click \
