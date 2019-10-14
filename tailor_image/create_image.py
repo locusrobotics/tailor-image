@@ -78,10 +78,11 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     elif build_type == 'bare_metal' and publish and distribution == 'xenial':
         # Get information about base image
         base_image = recipe[name]['base_image'].replace('$distribution', distribution)
-        username = recipe[name]['username']
-        password = recipe[name]['password']
-        ansible_command = recipe[name]['ansible_command']
-        extra_arguments_ansible = recipe[name]['extra_arguments_ansible']
+        optional_vars = []
+        optional_var_names = ['username', 'password', 'extra_arguments_ansible', 'ansible_command']
+        for var in optional_var_names:
+            if var in recipe[name]:
+                optional_vars.extend(['-var', f'{var}={recipe[name][var]}'])
 
         # Get base image
         base_image_local_path = '/tmp/' + base_image
@@ -110,12 +111,9 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
             '-var', f'image_name={image_name}',
             '-var', f's3_bucket={apt_repo}',
             '-var', f'iso_image={base_image_local_path}',
-            '-var', f'username={username}',
-            '-var', f'password={password}',
-            '-var', f'extra_arguments_ansible={extra_arguments_ansible}',
-            '-var', f'ansible_command={ansible_command}',
-
         ]
+
+        extra_vars.extend(optional_vars)
 
     else:
         return 0
