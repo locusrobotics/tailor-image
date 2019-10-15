@@ -11,7 +11,7 @@
     "password": "tailor",
 
     "ansible_command": "ansible-playbook",
-    "extra_arguments_ansible": "",
+    "extra_arguments_ansible": "-e package=tailor-image",
     "playbook_file": "bot.yaml",
     "inventory": "/mnt/bare_metal,",
 
@@ -59,12 +59,12 @@
       "playbook_file": "{{user `playbook_file`}}",
       "extra_arguments": [
         "--connection=chroot",
-        "{{ user `extra_arguments_ansible` }}",
         "-e bundle_track={{user `bundle_track`}}",
         "-e bundle_version={{user `bundle_version`}}",
         "-e organization={{user `organization`}}",
         "-e ansible_user={{user `username`}}",
         "-e image_name={{user `image_name`}}",
+        "{{ user `extra_arguments_ansible` }}",
         "--inventory={{user `inventory`}}"
       ]
     },
