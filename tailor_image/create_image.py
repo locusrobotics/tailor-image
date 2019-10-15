@@ -36,24 +36,21 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     recipe = yaml.safe_load((rosdistro_path / 'config/images.yaml').open())['images']
     distro = recipe[name]['distro']
     build_type = recipe[name]['build_type']
-    package = recipe[name]['package']
-    provision_file = recipe[name]['provision_file']
     env = source_file(f'{os.environ["BUNDLE_ROOT"]}/{distro}/setup.bash')
     today = datetime.date.today().strftime('%Y%m%d')
     extra_vars = []  # type: List[Any]
 
-    # Get packer template
+    if 'package' in recipe[name]:
+        package = recipe[name]['package']
+    else:
+        package = '/tailor-image'
+
+    provision_file = recipe[name]['provision_file']
+
     template_path = find_package(package, f'image_recipes/{name}/{name}.json', env)
-    if template_path is None:
-        template_path = f'/tailor-image/environment/image_recipes/{name}/{name}.json'
-
-    # Get playbook file
     provision_file_path = find_package(package, 'playbooks/' + provision_file, env)
-    if provision_file_path is None:
-        provision_file_path = f'/tailor-image/environment/playbooks/{name}.yaml'
-
-    # Set ansible path
     ansible_path = find_package(package, 'ansible.cfg', env)
+
     if ansible_path is not None:
         env['ANSIBLE_CONFIG'] = ansible_path
 
