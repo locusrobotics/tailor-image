@@ -1,7 +1,7 @@
 {
 
   "variables": {
-    "image_name": "tailor_test",
+    "image_name": "tailor_docker",
 
     "organization": "",
     "bundle_track": "hotdog",
@@ -12,7 +12,7 @@
     "password": "tailor",
 
     "ansible_command": "ansible-playbook",
-    "extra_arguments_ansible": "",
+    "extra_arguments_ansible": "-e package=tailor-image",
     "playbook_file": "test.yaml",
 
     "os_name": "ubuntu",
@@ -68,7 +68,7 @@
       "inline": [
         "groupadd -r {{user `username`}}",
         "useradd -ms /bin/bash -p {{user `password`}} -g {{user `username`}} -G sudo {{user `username`}}",
-        "echo \"{{user `username`}} ALL=(ALL) NOPASSWD: ALL\" > /etc/sudoers",
+        "echo \"{{user `username`}} ALL=(ALL) NOPASSWD: ALL\" >> /etc/sudoers",
         "mkdir -p /home/{{user `username`}}",
         "usermod -d /home/{{user `username`}} {{user `username`}}"
       ]
@@ -77,16 +77,18 @@
     {
       "type": "ansible",
       "user": "{{user `username`}}",
-      "playbook_file": "{{user `playbook_file`}}",
       "command": "{{user `ansible_command`}}",
+      "playbook_file": "{{user `playbook_file`}}",
       "extra_arguments": [
         "-vvvv",
+        "--connection=docker",
         "{{ user `extra_arguments_ansible` }}",
+        "-e ansible_user={{user `username`}}",
         "-e organization={{user `organization`}}",
         "-e bundle_track={{user `bundle_track`}}",
         "-e bundle_version={{user `bundle_version`}}",
         "-e bundle_flavour={{user `bundle_flavour`}}",
-        "-e ansible_host=default -e ansible_connection=docker"
+        "-e ansible_host=default"
       ]
     },
 

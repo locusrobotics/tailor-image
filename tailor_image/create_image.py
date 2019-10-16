@@ -47,7 +47,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
 
     provision_file = recipe[name]['provision_file']
 
-    template_path = f'/tailor-image/environment/image_recipes/{name}/{name}.json'
+    template_path = f'/tailor-image/environment/image_recipes/{build_type}/{build_type}.json'
     provision_file_path = find_package(package, 'playbooks/' + provision_file, env)
     ansible_path = find_package(package, 'ansible.cfg', env)
 
