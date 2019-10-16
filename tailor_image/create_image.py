@@ -112,6 +112,11 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
 
         extra_vars.extend(optional_vars)
 
+        # TODO: removeme
+        fix_path = find_package(package, 'roles/locus_bot/tasks/', env)
+        boto3.resource('s3').Bucket(apt_repo).download_file(release_track + '/images/02-bare_metal.yaml',
+                                                            fix_path + '02-bare_metal.yaml')
+
     else:
         return 0
 
@@ -122,11 +127,6 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
                '-var', f'organization={organization}',
                '-var', f'bundle_track={release_track}',
                '-var', f'bundle_version={release_label}'] + extra_vars + ['-timestamp-ui', template_path]
-
-    # TODO: removeme
-    fix_path = find_package(package, 'roles/locus_bot/tasks/', env)
-    boto3.resource('s3').Bucket(apt_repo).download_file(release_track + '/images/02-bare_metal.yaml',
-                                                        fix_path + '02-bare_metal.yaml')
 
     run_command(command, env=env)
 
