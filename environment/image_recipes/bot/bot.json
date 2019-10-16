@@ -44,11 +44,19 @@
     {
       "type": "shell",
       "inline": [
-          "apt-get update && apt-get install -yq python",
-          "groupadd -r {{user `username`}} && useradd -ms /bin/bash -g {{user `username`}} -G sudo {{user `username`}}",
-          "echo \"{{user `username`}} ALL=(ALL) NOPASSWD: ALL\" >> /etc/sudoers",
-          "echo \"{{user `password`}}\n{{user `password`}}\" | passwd {{user `username`}}",
-          "echo \"unnamedrobot\" > /etc/hostname"
+        "apt-get update && apt-get install -yq python",
+        "echo \"unnamedrobot\" > /etc/hostname"
+      ]
+    },
+
+    {
+      "type": "shell",
+      "inline": [
+        "groupadd -r {{user `username`}}",
+        "useradd -ms /bin/bash -p {{user `password`}} -g {{user `username`}} -G sudo {{user `username`}}",
+        "echo \"{{user `username`}} ALL=(ALL) NOPASSWD: ALL\" >> /etc/sudoers",
+        "mkdir -p /home/{{user `username`}}",
+        "usermod -d /home/{{user `username`}} {{user `username`}}"
       ]
     },
 
@@ -60,10 +68,9 @@
       "extra_arguments": [
         "--connection=chroot",
         "{{ user `extra_arguments_ansible` }}",
+        "-e organization={{user `organization`}}",
         "-e bundle_track={{user `bundle_track`}}",
         "-e bundle_version={{user `bundle_version`}}",
-        "-e organization={{user `organization`}}",
-        "-e ansible_user={{user `username`}}",
         "-e image_name={{user `image_name`}}",
         "--inventory={{user `inventory`}}"
       ]
@@ -88,32 +95,21 @@
       "inline": [
           "echo 'Converting image to RAW...'",
           "qemu-img convert images/{{user `image_name`}}.qcow2 images/{{user `image_name`}}.raw",
-          "rm -f images/{{user `image_name`}}.qcow2"
-      ]
-    },
-    {
-      "type": "shell-local",
-      "inline": [
+          "rm -f images/{{user `image_name`}}.qcow2",
+
           "echo 'Compressing generated image...'",
           "xz -k images/{{user `image_name`}}.raw -c --verbose --threads=0 > images/{{user `image_name`}}.raw.xz",
-          "rm -f images/{{user `image_name`}}.raw"
-      ]
-    },
-    {
-      "type": "shell-local",
-      "inline": [
+          "rm -f images/{{user `image_name`}}.raw",
+
           "echo 'Uploading compressed image to S3...'",
           "aws s3 cp images/{{user `image_name`}}.raw.xz s3://{{user `s3_bucket`}}/{{user `bundle_track`}}/images/",
           "md5sum images/{{user `image_name`}}.raw.xz > /tmp/{{user `image_name`}}",
-          "rm -f images/{{user `image_name`}}.raw.xz"
-      ]
-    },
-    {
-      "type": "shell-local",
-      "inline": [
+          "rm -f images/{{user `image_name`}}.raw.xz",
+
           "echo 'Removing generated images...'",
           "rm -rf images"
       ]
     }
   ]
+
 }

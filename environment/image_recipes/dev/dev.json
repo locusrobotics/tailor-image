@@ -1,0 +1,127 @@
+{
+
+  "variables": {
+    "image_name": "tailor_dev",
+
+    "organization": "",
+    "bundle_track": "hotdog",
+    "bundle_version": "hotdog",
+    "bundle_flavour": "dev",
+
+    "username": "tailor",
+    "password": "tailor",
+
+    "ansible_command": "ansible-playbook",
+    "extra_arguments_ansible": "-e package=tailor-image",
+    "playbook_file": "test.yaml",
+
+    "os_name": "ubuntu",
+    "os_version": "xenial",
+
+    "aws_access_key": "",
+    "aws_secret_key": "",
+    "ecr_server": "",
+    "ecr_repository": ""
+  },
+
+  "builders": [
+    {
+      "type": "docker",
+      "image": "{{user `os_name`}}:{{user  `os_version`}}",
+      "commit": "true",
+      "changes": [
+          "USER {{user `username`}}",
+          "LABEL tailor=\"dev_image\"",
+          "ENV BUNDLE_ROOT /opt/{{user `organization`}}/{{user `bundle_version`}}/{{user `bundle_flavour`}}",
+          "ENV LANG en_US.UTF-8"
+      ],
+      "run_command": [
+        "-d",
+        "-i",
+        "-t",
+        "--name",
+        "default",
+        "{{.Image}}",
+        "/bin/bash"
+      ]
+    }
+  ],
+
+  "provisioners": [
+    {
+      "type": "shell",
+      "environment_vars": [
+          "DEBIAN_FRONTEND=noninteractive",
+          "PYTHONUNBUFFERED=1",
+          "LANG=en_US.UTF-8"
+      ],
+      "inline": [
+          "apt update",
+          "apt-get install python python3 sudo locales ccache -yq",
+          "apt-get install -y tzdata",
+          "locale-gen en_US.UTF-8"
+      ]
+    },
+
+    {
+      "type": "shell",
+      "inline": [
+        "groupadd -r {{user `username`}}",
+        "useradd -ms /bin/bash -p {{user `password`}} -g {{user `username`}} -G sudo {{user `username`}}",
+        "echo \"{{user `username`}} ALL=(ALL) NOPASSWD: ALL\" >> /etc/sudoers",
+        "mkdir -p /home/{{user `username`}}",
+        "usermod -d /home/{{user `username`}} {{user `username`}}"
+      ]
+    },
+
+    {
+      "type": "ansible",
+      "user": "{{user `username`}}",
+      "command": "{{user `ansible_command`}}",
+      "playbook_file": "{{user `playbook_file`}}",
+      "extra_arguments": [
+        "--connection=docker",
+        "{{ user `extra_arguments_ansible` }}",
+        "-e organization={{user `organization`}}",
+        "-e bundle_track={{user `bundle_track`}}",
+        "-e bundle_version={{user `bundle_version`}}",
+        "-e bundle_flavour={{user `bundle_flavour`}}",
+        "-e ansible_host=default"
+      ]
+    },
+
+    {
+      "type": "file",
+      "source": "/rosdistro/rosdep/rosdep.yaml",
+      "destination": "/etc/ros/rosdep/rosdep.yaml"
+    },
+
+    {
+      "type": "shell",
+      "inline": [
+        "apt install -y python3-pip",
+        "python3 -m pip install setuptools -U",
+        "echo \"yaml file:///etc/ros/rosdep/rosdep.yaml\" > /etc/ros/rosdep/sources.list.d/10-tailor.list",
+        "su {{user `username`}} bash -c \"rosdep update\""
+      ]
+    }
+  ],
+
+  "post-processors": [
+    [
+      {
+        "type": "docker-tag",
+        "repository": "{{user `ecr_server`}}/{{user `ecr_repository`}}",
+        "tag": "{{user `image_name`}}"
+      },
+      {
+        "name": "publish",
+        "type": "docker-push",
+        "ecr_login": true,
+        "aws_access_key": "{{user `aws_access_key`}}",
+        "aws_secret_key": "{{user `aws_secret_key`}}",
+        "login_server": "https://{{user `ecr_server`}}"
+      }
+    ]
+  ]
+}
