@@ -56,9 +56,8 @@
           "LANG=en_US.UTF-8"
       ],
       "inline": [
-          "apt update",
-          "apt-get install python python3 sudo locales ccache -yq",
-          "apt-get install -y tzdata",
+          "apt-get update && apt-get install python python3 sudo locales ccache -yq",
+          "apt-get update && apt-get install -y tzdata",
           "locale-gen en_US.UTF-8"
       ]
     },
@@ -101,7 +100,7 @@
     {
       "type": "shell",
       "inline": [
-        "apt install -y python3-pip",
+        "apt-get update && apt-get install -y python3-pip",
         "python3 -m pip install setuptools -U",
         "echo \"yaml file:///etc/ros/rosdep/rosdep.yaml\" > /etc/ros/rosdep/sources.list.d/10-tailor.list",
         "su {{user `username`}} bash -c \"rosdep update\""
