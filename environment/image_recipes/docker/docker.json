@@ -79,7 +79,6 @@
       "command": "{{user `ansible_command`}}",
       "playbook_file": "{{user `playbook_file`}}",
       "extra_arguments": [
-        "-vvvv",
         "--connection=docker",
         "{{ user `extra_arguments_ansible` }}",
         "-e ansible_user={{user `username`}}",
