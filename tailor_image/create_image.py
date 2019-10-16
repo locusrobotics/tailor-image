@@ -54,6 +54,12 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     if ansible_path is not None:
         env['ANSIBLE_CONFIG'] = ansible_path
 
+    optional_vars = []
+    optional_var_names = ['username', 'password', 'extra_arguments_ansible', 'ansible_command']
+    for var in optional_var_names:
+        if var in recipe[name]:
+            optional_vars.extend(['-var', f'{var}={recipe[name][var]}'])
+
     if build_type == 'docker':
         image_name = f'tailor-image-{name}-{distribution}-{release_label}'
         docker_registry_data = docker_registry.replace('https://', '').split('/')
@@ -75,11 +81,6 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     elif build_type == 'bare_metal' and publish and distribution == 'xenial':
         # Get information about base image
         base_image = recipe[name]['base_image'].replace('$distribution', distribution)
-        optional_vars = []
-        optional_var_names = ['username', 'password', 'extra_arguments_ansible', 'ansible_command']
-        for var in optional_var_names:
-            if var in recipe[name]:
-                optional_vars.extend(['-var', f'{var}={recipe[name][var]}'])
 
         # Get base image
         base_image_local_path = '/tmp/' + base_image
@@ -114,6 +115,8 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
 
     else:
         return 0
+
+    extra_vars.extend(optional_vars)
 
     click.echo(f'Building {build_type} image with: {provision_file}', err=True)
 
