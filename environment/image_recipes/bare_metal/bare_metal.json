@@ -68,6 +68,7 @@
       "extra_arguments": [
         "--connection=chroot",
         "{{ user `extra_arguments_ansible` }}",
+        "-e ansible_user={{user `username`}}",
         "-e organization={{user `organization`}}",
         "-e bundle_track={{user `bundle_track`}}",
         "-e bundle_version={{user `bundle_version`}}",
