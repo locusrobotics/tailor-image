@@ -40,12 +40,15 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     today = datetime.date.today().strftime('%Y%m%d')
     extra_vars = []  # type: List[Any]
 
-    if 'package' in recipe[name]:
+    try:
         package = recipe[name]['package']
-    else:
+    except KeyError:
         package = '/tailor-image'
 
-    provision_file = recipe[name]['provision_file']
+    try:
+        provision_file = recipe[name]['provision_file']
+    except KeyError:
+        provision_file = f'{build_type}.yaml'
 
     template_path = f'/tailor-image/environment/image_recipes/{build_type}/{build_type}.json'
     provision_file_path = find_package(package, 'playbooks/' + provision_file, env)
