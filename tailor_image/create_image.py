@@ -69,6 +69,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         ecr_server = docker_registry_data[0]
         ecr_repository = docker_registry_data[1]
         extra_vars = [
+            '-var', f'type={build_type}',
             '-var', f'bundle_flavour={flavour}',
             '-var', f'image_name={image_name}',
             '-var', f'ecr_server={ecr_server}',

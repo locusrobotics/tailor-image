@@ -17,6 +17,7 @@
 
     "os_name": "ubuntu",
     "os_version": "xenial",
+    "type": "test",
 
     "aws_access_key": "",
     "aws_secret_key": "",
@@ -31,7 +32,7 @@
       "commit": "true",
       "changes": [
           "USER {{user `username`}}",
-          "LABEL tailor=\"dev_image\"",
+          "LABEL tailor=\"{{user `type`}}_image\"",
           "ENV BUNDLE_ROOT /opt/{{user `organization`}}/{{user `bundle_version`}}/{{user `bundle_flavour`}}",
           "ENV LANG en_US.UTF-8"
       ],
@@ -87,22 +88,6 @@
         "-e bundle_version={{user `bundle_version`}}",
         "-e bundle_flavour={{user `bundle_flavour`}}",
         "-e ansible_host=default"
-      ]
-    },
-
-    {
-      "type": "file",
-      "source": "/rosdistro/rosdep/rosdep.yaml",
-      "destination": "/etc/ros/rosdep/rosdep.yaml"
-    },
-
-    {
-      "type": "shell",
-      "inline": [
-        "apt-get update && apt-get install -y python3-pip",
-        "python3 -m pip install setuptools -U",
-        "echo \"yaml file:///etc/ros/rosdep/rosdep.yaml\" > /etc/ros/rosdep/sources.list.d/10-tailor.list",
-        "su {{user `username`}} bash -c \"rosdep update\""
       ]
     }
   ],
