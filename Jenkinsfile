@@ -147,6 +147,7 @@ pipeline {
                                         "--env AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
                                         "--env AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY") {
                       sh("""#!/bin/bash
+                            source \$BUNDLE_ROOT/ros1/setup.bash &&
                             sudo -E PYTHONPATH=\$PYTHONPATH PATH=\$PATH create_image --name ${image} \
                             --distribution ${distribution} --apt-repo ${params.apt_repo - 's3://'} \
                             --release-track ${params.release_track} --release-label ${params.release_label} \
