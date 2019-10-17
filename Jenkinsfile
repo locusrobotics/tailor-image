@@ -58,7 +58,7 @@ pipeline {
           distributions = recipes_config['os'].collect {
             os, distribution -> distribution }.flatten()
 
-          images = readYaml(file: images_yaml).images
+          images_config = readYaml(file: images_yaml).images
 
           stash(name: 'rosdistro', includes: 'rosdistro/**')
         }
@@ -128,7 +128,7 @@ pipeline {
         script {
           def jobs = [:]
           distributions.each { distribution ->
-            jobs << images.collectEntries { image, config ->
+            jobs << images_config.collectEntries { image, config ->
               ["${image}-${distribution}", { node {
                 try {
                   dir('tailor-image') {
@@ -147,6 +147,7 @@ pipeline {
                                         "--env AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
                                         "--env AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY") {
                       sh("""#!/bin/bash
+                            source \$BUNDLE_ROOT/${config['distro']}/setup.bash &&
                             sudo -E PYTHONPATH=\$PYTHONPATH PATH=\$PATH create_image --name ${image} \
                             --distribution ${distribution} --apt-repo ${params.apt_repo - 's3://'} \
                             --release-track ${params.release_track} --release-label ${params.release_label} \
