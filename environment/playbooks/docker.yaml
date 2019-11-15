@@ -1,0 +1,11 @@
+---
+- name: Provision a single robot image
+  hosts: default
+  tasks:
+  - name: Install desired packages
+    apt:
+      pkg: "{{ item }}"
+      state: present
+    with_items:
+      - vim
+    become: true

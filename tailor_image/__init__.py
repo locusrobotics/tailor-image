@@ -6,9 +6,12 @@ import subprocess
 
 
 def find_package(package: str, path: str, env):
-    path = run_command(['catkin_find', package, path, '--first-only'],
-                       stdout=subprocess.PIPE,
-                       env=env).stdout.decode().replace('\n', '')
+    if package == '/tailor-image':
+        path = f'{package}/environment/{path}'
+    else:
+        path = run_command(['catkin_find', package, path, '--first-only'],
+                           stdout=subprocess.PIPE,
+                           env=env).stdout.decode().replace('\n', '')
     return path
 
 
