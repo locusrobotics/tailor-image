@@ -47,6 +47,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     except KeyError:
         package = '/tailor-image'
         provision_file = f'{build_type}.yaml'
+        env['ANSIBLE_CONFIG'] = find_package(package, 'ansible.cfg', env)
 
     template_path = f'/tailor-image/environment/image_recipes/{build_type}/{build_type}.json'
     provision_file_path = find_package(package, 'playbooks/' + provision_file, env)
