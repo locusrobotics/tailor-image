@@ -55,13 +55,6 @@ RUN apt-get update -qq && apt-get install -qqy \
 # Install Docker from Docker Inc. repositories.
 RUN curl -sSL https://get.docker.com/ | VERSION=5:19.03.2 sh
 
-RUN pip3 install \
-    click \
-    pytest \
-    pytest-mypy \
-    pytest-flake8 \
-    pytest-runner
-
 # Install packer
 RUN curl -sSL https://releases.hashicorp.com/packer/1.4.1/packer_1.4.1_linux_amd64.zip > packer.zip && \
     unzip packer.zip -d /usr/local/bin && \
