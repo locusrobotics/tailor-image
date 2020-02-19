@@ -38,7 +38,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     build_type = recipe[name]['build_type']
     env = source_file(f'{os.environ["BUNDLE_ROOT"]}/{distro}/setup.bash')
     today = datetime.date.today().strftime('%Y%m%d')
-    extra_vars = []  # type: List[Any]
+    extra_vars: List[Any] = []
 
     try:
         package = recipe[name]['package']
