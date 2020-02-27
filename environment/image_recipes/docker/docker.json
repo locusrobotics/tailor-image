@@ -89,6 +89,22 @@
         "-e bundle_flavour={{user `bundle_flavour`}}",
         "-e ansible_host=default"
       ]
+    },
+
+    {
+      "type": "file",
+      "source": "/rosdistro/rosdep/rosdep.yaml",
+      "destination": "/etc/ros/rosdep/rosdep.yaml"
+    },
+
+    {
+      "type": "shell",
+      "inline": [
+        "apt install -y python3-pip",
+        "python3 -m pip install setuptools -U",
+        "echo \"yaml file:///etc/ros/rosdep/rosdep.yaml\" > /etc/ros/rosdep/sources.list.d/10-tailor.list",
+        "su {{user `username`}} bash -c \"rosdep update\""
+      ]
     }
   ],
 
