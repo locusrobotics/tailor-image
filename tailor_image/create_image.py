@@ -52,7 +52,8 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     provision_file_path = find_package(package, 'playbooks/' + provision_file, env)
 
     optional_vars = []
-    optional_var_names = ['username', 'password', 'extra_arguments_ansible', 'ansible_command']
+    optional_var_names = ['username', 'password', 'extra_arguments_ansible',
+                          'ansible_command', 'source_ami', 'description']
     for var in optional_var_names:
         if var in recipe[name]:
             optional_vars.extend(['-var', f'{var}={recipe[name][var]}'])
@@ -111,6 +112,15 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
 
         extra_vars.extend(optional_vars)
 
+    elif build_type == 'ami':
+        image_name = f'{organization}_{name}_{distribution}_ami_{release_label}_{today}'
+        extra_vars = [
+            '-var', f'build_date={today}',
+            '-var', f'image_name={image_name}',
+            '-var', f'image_name_tag={name}',
+            '-var', f'aws_access_key={os.environ["AWS_ACCESS_KEY_ID"]}',
+            '-var', f'aws_secret_key={os.environ["AWS_SECRET_ACCESS_KEY"]}'
+        ]
     else:
         return 0
 
@@ -195,7 +205,7 @@ def main():
     args = parser.parse_args()
 
     # Print full command, useful for debugging
-    click.echo(' '.join(sys.argv[0]))
+    click.echo(' '.join(sys.argv))
 
     sys.exit(create_image(**vars(args)))
 

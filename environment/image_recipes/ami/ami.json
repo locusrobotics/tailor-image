@@ -1,0 +1,88 @@
+{
+
+  "variables": {
+    "image_name": "ami",
+    "build_date": "",
+    "description": "AMI built by tailor",
+
+    "bundle_track": "hotdog",
+    "bundle_version": "hotdog",
+
+    "username": "ubuntu",
+    "password": "ubuntu",
+
+    "disk_size": "15",
+
+    "aws_access_key": "",
+    "aws_secret_key": "",
+    "aws_region": "us-east-1",
+
+    "source_ami": "ami-0bfb5f753b6c2d30b",
+    "instance_type": "t2.medium",
+
+    "ansible_command": "ansible-playbook",
+    "extra_arguments_ansible": "-e package=tailor-image",
+    "playbook_file": ""
+  },
+
+  "builders": [
+    {
+      "type": "amazon-ebs",
+
+      "access_key": "{{user `aws_access_key`}}",
+      "secret_key": "{{user `aws_secret_key`}}",
+      "region": "{{user `aws_region`}}",
+
+      "instance_type": "{{user `instance_type`}}",
+      "source_ami": "{{user `source_ami`}}",
+
+      "force_deregister": "true",
+      "force_delete_snapshot": "true",
+
+      "ssh_username": "{{user `username`}}",
+
+      "ami_name": "{{user `image_name`}}",
+      "ami_description": "{{user `image_description`}}",
+
+      "launch_block_device_mappings": [
+        {
+            "device_name": "/dev/sda1",
+            "volume_size": "{{user `disk_size`}}",
+            "delete_on_termination": true
+        }
+      ],
+
+      "tags": {
+        "Name": "{{user `image_name`}}",
+        "Build Date": "{{user `build_date`}}",
+        "Comment": "{{user `image_description`}}"
+      }
+    }
+  ],
+
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [
+          "sudo apt-add-repository multiverse",
+          "sudo apt-get update",
+          "sudo apt-get install -yq python2.7 ec2-ami-tools",
+          "echo \"{{user `username`}} ALL=(ALL) NOPASSWD: ALL\" | sudo tee -a /etc/sudoers",
+          "echo \"{{user `password`}}\n{{user `password`}}\" | sudo passwd {{user `username`}}"
+      ]
+    },
+
+    {
+      "type": "ansible",
+      "user": "{{user `username`}}",
+      "command": "{{user `ansible_command`}}",
+      "playbook_file": "{{user `playbook_file`}}",
+      "extra_arguments": [
+        "{{ user `extra_arguments_ansible` }}",
+        "-e bundle_track={{user `bundle_track`}}",
+        "-e bundle_version={{user `bundle_version`}}",
+        "-v"
+      ]
+    }
+  ]
+}
