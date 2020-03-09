@@ -194,6 +194,9 @@ def main():
 
     args = parser.parse_args()
 
+    # Print full command, useful for debugging
+    click.echo(' '.join(sys.argv[0]))
+
     sys.exit(create_image(**vars(args)))
 
 

@@ -8,4 +8,18 @@
       state: present
     with_items:
       - vim
+    update_cache: true
+    become: true
+
+  - name: Install necessary packages
+    apt:
+      pkg: "{{ item }}"
+      state: present
+    with_items:
+      - python-rosdep
+      - ca-certificates
+    update_cache: true
+    become: true
+  - name: Run rosdep init
+    command: rosdep init
     become: true
