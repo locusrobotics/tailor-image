@@ -12,7 +12,7 @@
 
     "ansible_command": "ansible-playbook",
     "extra_arguments_ansible": "-e package=tailor-image",
-    "playbook_file": "bot.yaml",
+    "playbook_file": "bare_metal.yaml",
     "inventory": "/mnt/bare_metal,",
 
     "s3_bucket": "tailor-artifacts",

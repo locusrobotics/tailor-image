@@ -1,0 +1,11 @@
+---
+- name: Provision an ec2 ami
+  hosts: all
+  tasks:
+  - name: Install desired packages
+    apt:
+      pkg: "{{ item }}"
+      state: present
+    with_items:
+      - vim
+    become: true

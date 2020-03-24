@@ -22,7 +22,7 @@
 
     "ansible_command": "ansible-playbook",
     "extra_arguments_ansible": "-e package=tailor-image",
-    "playbook_file": ""
+    "playbook_file": "ami.yaml"
   },
 
   "builders": [
