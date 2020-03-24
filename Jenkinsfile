@@ -127,8 +127,15 @@ pipeline {
       steps {
         script {
           def jobs = [:]
-          distributions.each { distribution ->
-            jobs << images_config.collectEntries { image, config ->
+          images_config.each { image, config ->
+            def tmp_distributions = distributions.clone()
+
+            // If `os_versions` is not configured, default to build for all distros
+            if (config['os_versions']) {
+              tmp_distributions.retainAll(config['os_versions'])
+            }
+
+            jobs << tmp_distributions.collectEntries { distribution ->
               ["${image}-${distribution}", { node {
                 try {
                   dir('tailor-image') {
