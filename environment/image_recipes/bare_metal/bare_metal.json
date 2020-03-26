@@ -37,15 +37,8 @@
       "type": "shell",
       "inline": [
           "mv /etc/resolv.conf /etc/resolv.conf.old",
-          "echo \"nameserver 1.1.1.1\" > /etc/resolv.conf"
-      ]
-    },
-
-    {
-      "type": "shell",
-      "inline": [
-        "apt-get update && apt-get install -yq python",
-        "echo \"unnamedrobot\" > /etc/hostname"
+          "echo \"nameserver 1.1.1.1\" > /etc/resolv.conf",
+          "echo \"unnamedrobot\" > /etc/hostname"
       ]
     },
 
@@ -73,6 +66,7 @@
         "-e bundle_track={{user `bundle_track`}}",
         "-e bundle_version={{user `bundle_version`}}",
         "-e image_name={{user `image_name`}}",
+        "-e ansible_python_interpreter=/usr/bin/python3",
         "--inventory={{user `inventory`}}"
       ]
     },

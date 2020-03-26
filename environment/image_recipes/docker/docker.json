@@ -87,6 +87,7 @@
         "-e bundle_track={{user `bundle_track`}}",
         "-e bundle_version={{user `bundle_version`}}",
         "-e bundle_flavour={{user `bundle_flavour`}}",
+        "-e ansible_python_interpreter=/usr/bin/python3",
         "-e ansible_host=default"
       ]
     },

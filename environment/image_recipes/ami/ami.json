@@ -66,7 +66,7 @@
       "inline": [
           "sudo apt-add-repository multiverse",
           "sudo apt-get update",
-          "sudo apt-get install -yq python2.7 ec2-ami-tools",
+          "sudo apt-get install -yq ec2-ami-tools",
           "echo \"{{user `username`}} ALL=(ALL) NOPASSWD: ALL\" | sudo tee -a /etc/sudoers",
           "echo \"{{user `password`}}\n{{user `password`}}\" | sudo passwd {{user `username`}}"
       ]
@@ -81,6 +81,7 @@
         "{{ user `extra_arguments_ansible` }}",
         "-e bundle_track={{user `bundle_track`}}",
         "-e bundle_version={{user `bundle_version`}}",
+        "-e ansible_python_interpreter=/usr/bin/python3",
         "-v"
       ]
     }
