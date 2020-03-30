@@ -37,15 +37,9 @@
       "type": "shell",
       "inline": [
           "mv /etc/resolv.conf /etc/resolv.conf.old",
-          "echo \"nameserver 1.1.1.1\" > /etc/resolv.conf"
-      ]
-    },
-
-    {
-      "type": "shell",
-      "inline": [
-        "apt-get update && apt-get install -yq python",
-        "echo \"unnamedrobot\" > /etc/hostname"
+          "echo \"nameserver 1.1.1.1\" > /etc/resolv.conf",
+          "echo \"unnamedrobot\" > /etc/hostname",
+          "apt-get update && apt-get install -yq python"
       ]
     },
 
