@@ -77,7 +77,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         if not publish:
             extra_vars += ['-except', 'publish']
 
-    elif build_type == 'bare_metal' and publish and distribution == 'xenial':
+    elif build_type == 'bare_metal' and publish:
         # Get information about base image
         base_image = recipe[name]['base_image'].replace('$distribution', distribution)
 
@@ -137,7 +137,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     run_command(command, env=env)
 
     # TODO(gservin): If we build more that one bare metal image at the same time, we can have a race condition here
-    if build_type == 'bare_metal' and publish and distribution == 'xenial':
+    if build_type == 'bare_metal' and publish:
         update_image_index(release_track, apt_repo, common_config, image_name)
 
 
