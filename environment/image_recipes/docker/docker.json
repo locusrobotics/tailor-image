@@ -57,7 +57,7 @@
           "LANG=en_US.UTF-8"
       ],
       "inline": [
-          "apt-get update && apt-get install python python3 sudo locales ccache -yq",
+          "apt-get update && apt-get install -yq python python3 sudo locales ccache gnupg",
           "apt-get update && apt-get install -y tzdata",
           "locale-gen en_US.UTF-8"
       ]
