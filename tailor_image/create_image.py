@@ -113,11 +113,12 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         extra_vars.extend(optional_vars)
 
     elif build_type == 'ami':
-        image_name = f'{organization}_{name}_{distribution}_ami_{release_label}_{today}'
+        image_name_tag = f'{organization}_{name}_{distribution}_ami_{release_label}'
+        image_name = f'{image_name_tag}_{today}'
         extra_vars = [
             '-var', f'build_date={today}',
             '-var', f'image_name={image_name}',
-            '-var', f'image_name_tag={name}',
+            '-var', f'image_name_tag={image_name_tag}',
             '-var', f'aws_access_key={os.environ["AWS_ACCESS_KEY_ID"]}',
             '-var', f'aws_secret_key={os.environ["AWS_SECRET_ACCESS_KEY"]}'
         ]
