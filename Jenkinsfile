@@ -70,7 +70,7 @@ pipeline {
       }
     }
 
-    stage("Build and test tailor-image") {
+    stage("Build tailor-image") {
       agent any
       steps {
         script {
@@ -103,7 +103,7 @@ pipeline {
           }
 
           parent_image.inside() {
-            sh('cd tailor-image && python3 setup.py test')
+            sh('pip3 install -e tailor-image')
           }
           docker.withRegistry(params.docker_registry, docker_credentials) {
             parent_image.push()
@@ -111,9 +111,6 @@ pipeline {
         }
       }
       post {
-        always {
-          junit(testResults: 'tailor-image/test-results.xml')
-        }
         cleanup {
           library("tailor-meta@${params.tailor_meta}")
           cleanDocker()
