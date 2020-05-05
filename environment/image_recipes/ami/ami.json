@@ -2,7 +2,6 @@
 
   "variables": {
     "image_name": "ami",
-    "image_name_tag": "ami",
     "build_date": "",
     "description": "AMI built by tailor",
 
@@ -54,7 +53,7 @@
       ],
 
       "tags": {
-        "Name": "{{user `image_name_tag`}}",
+        "Name": "{{user `image_name`}}",
         "Build Date": "{{user `build_date`}}",
         "Comment": "{{user `image_description`}}"
       }

@@ -39,7 +39,7 @@
           "mv /etc/resolv.conf /etc/resolv.conf.old",
           "echo \"nameserver 1.1.1.1\" > /etc/resolv.conf",
           "echo \"unnamedrobot\" > /etc/hostname",
-          "apt-get update && apt-get install -yq python"
+          "apt-get update && apt-get install -yq python sudo"
       ]
     },
 
@@ -47,7 +47,7 @@
       "type": "shell",
       "inline": [
         "groupadd -r {{user `username`}}",
-        "useradd -ms /bin/bash -p {{user `password`}} -g {{user `username`}} -G sudo {{user `username`}}",
+        "useradd -ms /bin/bash -p $(echo \"{{user `password`}}\" | openssl passwd -1 -stdin) -g {{user `username`}} -G sudo {{user `username`}}",
         "echo \"{{user `username`}} ALL=(ALL) NOPASSWD: ALL\" >> /etc/sudoers",
         "mkdir -p /home/{{user `username`}}",
         "usermod -d /home/{{user `username`}} {{user `username`}}"
