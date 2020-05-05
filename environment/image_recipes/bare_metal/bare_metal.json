@@ -39,7 +39,7 @@
           "mv /etc/resolv.conf /etc/resolv.conf.old",
           "echo \"nameserver 1.1.1.1\" > /etc/resolv.conf",
           "echo \"unnamedrobot\" > /etc/hostname",
-          "apt-get update && apt-get install -yq python sudo"
+          "apt-get update && apt-get install -yq python sudo openssl"
       ]
     },
 
