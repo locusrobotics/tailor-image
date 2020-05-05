@@ -57,7 +57,7 @@
           "LANG=en_US.UTF-8"
       ],
       "inline": [
-          "apt-get update && apt-get install python python3 sudo locales ccache -yq",
+          "apt-get update && apt-get install -yq python python3 sudo locales ccache gnupg openssl",
           "apt-get update && apt-get install -y tzdata",
           "locale-gen en_US.UTF-8"
       ]
@@ -67,7 +67,7 @@
       "type": "shell",
       "inline": [
         "groupadd -r {{user `username`}}",
-        "useradd -ms /bin/bash -p {{user `password`}} -g {{user `username`}} -G sudo {{user `username`}}",
+        "useradd -ms /bin/bash -p $(echo \"{{user `password`}}\" | openssl passwd -1 -stdin) -g {{user `username`}} -G sudo {{user `username`}}",
         "echo \"{{user `username`}} ALL=(ALL) NOPASSWD: ALL\" >> /etc/sudoers",
         "mkdir -p /home/{{user `username`}}",
         "usermod -d /home/{{user `username`}} {{user `username`}}"
