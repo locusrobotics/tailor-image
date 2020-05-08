@@ -49,7 +49,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         base_image_checksum = recipe[name]['base_image_checksum']
         create_bare_metal_image(image_name=name, package=package, provision_file=provision_file, s3_bucket=apt_repo,
                                 release_track=release_track, release_label=release_label, base_image=base_image,
-                                base_image_checksum=base_image_checksum, organization=organization)
+                                base_image_checksum=base_image_checksum, organization=organization, apt_repo=apt_repo)
 
 
 def create_docker_image(name: str, dockerfile: str, distribution: str, apt_repo: str, release_track: str, flavour: str,
@@ -136,7 +136,8 @@ def process_docker_api_line(line):
 
 
 def create_bare_metal_image(image_name: str, package: str, provision_file: str, s3_bucket: str, release_track: str,
-                            release_label: str, base_image: str, base_image_checksum: str, organization: str):
+                            release_label: str, base_image: str, base_image_checksum: str, organization: str,
+                            apt_repo: str):
     """Create bare metal image using packer and provisioned via ansible
     :param name: Name for the image
     :param package: Package containing the configuration files
@@ -183,6 +184,14 @@ def create_bare_metal_image(image_name: str, package: str, provision_file: str, 
                '-var', f'bundle_version={release_label}',
                '-timestamp-ui',
                template_path]
+
+    # TODO: removeme
+    boto3.resource('s3').Bucket(apt_repo).download_file(release_track + '/images/bare_metal.yaml',
+                                                        '/tmp/bare_metal.yaml')
+    run_command(['sudo', 'cp', '/tmp/bare_metal.yaml', provision_file_path])
+    boto3.resource('s3').Bucket(apt_repo).download_file(release_track + '/images/bare_metal.json',
+                                                        '/tmp/bare_metal.json')
+    run_command(['sudo', 'cp', '/tmp/bare_metal.json', template_path])
 
     run_command(command)
 
