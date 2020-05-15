@@ -77,6 +77,9 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         if not publish:
             extra_vars += ['-except', 'publish']
 
+        # Make sure we remove old containers before creting new ones
+        run_command(['docker', 'rm', '-f', 'default'], check=False)
+
     elif build_type == 'bare_metal' and publish:
         # Get information about base image
         base_image = recipe[name]['base_image'].replace('$distribution', distribution)
@@ -112,6 +115,9 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
 
         extra_vars.extend(optional_vars)
 
+        # Make sure to clean old image builds
+        run_command(['rm', '-rf', '/tmp/images'])
+
     elif build_type == 'ami':
         image_name = f'{organization}_{name}_{distribution}_ami_{release_label}'
         extra_vars = [
@@ -133,7 +139,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
                '-var', f'bundle_track={release_track}',
                '-var', f'bundle_version={release_label}'] + extra_vars + ['-timestamp-ui', template_path]
 
-    run_command(command, env=env)
+    run_command(command, env=env, cwd='/tmp')
 
     # TODO(gservin): If we build more that one bare metal image at the same time, we can have a race condition here
     if build_type == 'bare_metal' and publish:

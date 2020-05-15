@@ -15,9 +15,9 @@ def find_package(package: str, path: str, env):
     return path
 
 
-def run_command(cmd, *args, **kwargs):
+def run_command(cmd, check=True, *args, **kwargs):
     print(' '.join(cmd), file=sys.stderr)
-    return subprocess.run(cmd, check=True, *args, **kwargs)
+    return subprocess.run(cmd, check=check, *args, **kwargs)
 
 
 def source_file(path):
