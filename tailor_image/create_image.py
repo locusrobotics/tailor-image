@@ -3,15 +3,18 @@ import datetime
 import json
 import os
 import pathlib
+import random
 import sys
+import time
 
 from typing import Any, List
 
 import argparse
-import boto3
-import botocore
 import click
 import yaml
+
+import boto3
+import botocore
 
 from . import find_package, run_command, source_file
 
@@ -141,16 +144,27 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
 
     run_command(command, env=env, cwd='/tmp')
 
-    # TODO(gservin): If we build more that one bare metal image at the same time, we can have a race condition here
     if build_type == 'bare_metal' and publish:
         update_image_index(release_track, apt_repo, common_config, image_name)
 
 
 def update_image_index(release_track, apt_repo, common_config, image_name):
     index_key = release_track + '/images/index'
-    s3_object = boto3.resource("s3").Bucket(apt_repo)
-    json.load_s3 = lambda f: json.load(s3_object.Object(key=f).get()["Body"])
-    json.dump_s3 = lambda obj, f: s3_object.Object(key=f).put(Body=json.dumps(obj, indent=2))
+    s3_bucket = boto3.resource("s3").Bucket(apt_repo)
+
+    # Wait until no lock file exists to avoid race condition
+    lock = s3_bucket.Object(f'{index_key}.lock')
+    while True:
+        time.sleep(random.random() * 2.0)
+        try:
+            lock.get()
+        except botocore.exceptions.ClientError as error:
+            if error.response['Error']['Code'] == 'NoSuchKey':
+                lock.put(Body='')
+                break
+
+    json.load_s3 = lambda f: json.load(s3_bucket.Object(key=f).get()["Body"])
+    json.dump_s3 = lambda obj, f: s3_bucket.Object(key=f).put(Body=json.dumps(obj, indent=2))
     _, _, distribution, release_label, _ = image_name.split('_')
 
     # Read checksum from generated file
@@ -192,6 +206,7 @@ def update_image_index(release_track, apt_repo, common_config, image_name):
                                        },
                                        'CallerReference':  datetime.datetime.now().strftime('%Y%m%d%H%M%S')
                                    })
+    lock.delete()
 
 
 def main():
