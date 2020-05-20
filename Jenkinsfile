@@ -128,8 +128,8 @@ pipeline {
             def tmp_distributions = distributions.clone()
 
             // If `os_versions` is not configured, default to build for all distros
-            if (config['os_versions']) {
-              tmp_distributions.retainAll(config['os_versions'])
+            if (config.containsKey('os_versions')) {
+              tmp_distributions = config['os_versions'].findAll { it in distributions }
             }
 
             jobs << tmp_distributions.collectEntries { distribution ->
@@ -151,11 +151,17 @@ pipeline {
                                         "--env AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
                                         "--env AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY") {
                       sh("""#!/bin/bash
-                            sudo -E create_image --name ${image} \
-                            --distribution ${distribution} --apt-repo ${params.apt_repo - 's3://'} \
-                            --release-track ${params.release_track} --release-label ${params.release_label} \
-                            --flavour ${testing_flavour} --organization ${organization} ${params.deploy ? '--publish' : ''} \
-                            --docker-registry ${params.docker_registry} --rosdistro-path /rosdistro
+                            sudo -E create_image \
+                            --name ${image} \
+                            --distribution ${distribution} \
+                            --apt-repo ${params.apt_repo - 's3://'} \
+                            --release-track ${params.release_track} \
+                            --release-label ${params.release_label} \
+                            --flavour ${testing_flavour} \
+                            --organization ${organization} \
+                            --docker-registry ${params.docker_registry} \
+                            --rosdistro-path /rosdistro \
+                            ${params.deploy ? '--publish' : ''}
                          """)
                     }
                   }

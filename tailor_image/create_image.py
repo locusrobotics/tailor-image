@@ -155,7 +155,10 @@ def update_image_index(release_track, apt_repo, common_config, image_name):
     {
       "<release_label>": {
         "<flavour>": {
-          "version": "<organization>_<flavour>_<distribution>_<release_label>_<date>",
+          "distribution": {
+            "<distribution>": "<organization>_<flavour>_<distribution>_<release_label>_<date>",
+            ...
+          },
           "checksums": {
             "<organization>_<flavour>_<distribution>_<release_label>_<date>": "<md5sum_of_image>",
           }
@@ -175,13 +178,13 @@ def update_image_index(release_track, apt_repo, common_config, image_name):
         try:
             lock.get()
         except botocore.exceptions.ClientError as error:
-            if error.response['Error']['Code'] == 'NosuchKey':
+            if error.response['Error']['Code'] == 'NoSuchKey':
                 lock.put(Body='')
                 break
 
     json.load_s3 = lambda f: json.load(s3_bucket.Object(key=f).get()['Body'])
     json.dump_s3 = lambda obj, f: s3_bucket.Object(key=f).put(Body=json.dumps(obj, indent=2))
-    _, flavour, _, release_label, _ = image_name.split('_')
+    _, flavour, distribution, release_label, _ = image_name.split('_')
 
     # Read checksum from generated file
     with open(f'/tmp/{image_name}', 'r') as checksum_file:
@@ -191,7 +194,9 @@ def update_image_index(release_track, apt_repo, common_config, image_name):
     base_data = {
         release_label: {
             flavour: {
-                'version': image_name,
+                'distributions': {
+                    distribution: image_name
+                },
                 'checksums': {
                     image_name: checksum
                 }
@@ -208,7 +213,7 @@ def update_image_index(release_track, apt_repo, common_config, image_name):
             data[release_label][flavour] = base_data[release_label][flavour]
         else:
             # If release_label and flavour already exists, update the image and add checksum
-            data[release_label][flavour]['version'] = image_name
+            data[release_label][flavour]['distributions'][distribution] = image_name
             data[release_label][flavour]['checksums'][image_name] = checksum
     except botocore.exceptions.ClientError as error:
         # If file doesn't exists, we'll create a new one
