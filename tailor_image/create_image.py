@@ -3,9 +3,7 @@ import datetime
 import json
 import os
 import pathlib
-import random
 import sys
-import time
 
 from typing import Any, List
 
@@ -16,8 +14,14 @@ import yaml
 import boto3
 import botocore
 
-from . import find_package, run_command, source_file
-
+from . import (
+    find_package,
+    run_command,
+    source_file,
+    tag_file,
+    wait_for_index,
+    invalidate_file_cloudfront
+)
 
 def create_image(name: str, distribution: str, apt_repo: str, release_track: str, release_label: str, flavour: str,
                  organization: str, docker_registry: str, rosdistro_path: pathlib.Path, publish: bool = False):
@@ -168,22 +172,16 @@ def update_image_index(release_track, apt_repo, common_config, image_name):
       }
     }
     """
+    s3 = boto3.client('s3')
+
+    # Helper methods
+    json.load_s3 = lambda f: json.load(s3.get_object(Bucket=apt_repo, Key=f)['Body'])
+    json.dump_s3 = lambda obj, f: s3.put_object(Bucket=apt_repo,
+                                                Key=f,
+                                                Body=json.dumps(obj, indent=2))
+
     index_key = release_track + '/images/index'
-    s3_bucket = boto3.resource("s3").Bucket(apt_repo)
 
-    # Wait until no lock file exists to avoid race condition
-    lock = s3_bucket.Object(f'{index_key}.lock')
-    while True:
-        time.sleep(random.random() * 2.0)
-        try:
-            lock.get()
-        except botocore.exceptions.ClientError as error:
-            if error.response['Error']['Code'] == 'NoSuchKey':
-                lock.put(Body='')
-                break
-
-    json.load_s3 = lambda f: json.load(s3_bucket.Object(key=f).get()['Body'])
-    json.dump_s3 = lambda obj, f: s3_bucket.Object(key=f).put(Body=json.dumps(obj, indent=2))
     _, flavour, distribution, release_label, _ = image_name.split('_')
 
     # Read checksum from generated file
@@ -206,6 +204,8 @@ def update_image_index(release_track, apt_repo, common_config, image_name):
 
     data = {}
     try:
+        # Wait for file to be ready to write
+        wait_for_index(s3, apt_repo, index_key)
         data = json.load_s3(index_key)
         if release_label not in data:
             data[release_label] = base_data[release_label]
@@ -222,22 +222,11 @@ def update_image_index(release_track, apt_repo, common_config, image_name):
 
     # Write data to index file
     json.dump_s3(data, index_key)
+    tag_file(s3, apt_repo, index_key, 'Lock', 'False')
 
     # Invalidate image index cache
     if 'cloudfront_distribution_id' in common_config:
-        distribution_id = common_config['cloudfront_distribution_id']
-        client = boto3.client('cloudfront')
-        client.create_invalidation(DistributionId=distribution_id,
-                                   InvalidationBatch={
-                                       'Paths': {
-                                           'Quantity': 1,
-                                           'Items': [
-                                               f'/{index_key}',
-                                           ]
-                                       },
-                                       'CallerReference':  datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-                                   })
-    lock.delete()
+        invalidate_file_cloudfront(common_config['cloudfront_distribution_id'], index_key)
 
 
 def main():
