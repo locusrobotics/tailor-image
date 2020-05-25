@@ -1,8 +1,15 @@
 __version__ = '0.0.0'
 
 import json
+import random
 import sys
 import subprocess
+import time
+
+from datetime import datetime
+
+import boto3
+import botocore
 
 
 def find_package(package: str, path: str, env):
@@ -24,3 +31,53 @@ def source_file(path):
     dump = '/usr/bin/python -c "import os, json; print json.dumps(dict(os.environ))"'
     pipe = subprocess.Popen(['/bin/bash', '-c', f'source {path} && {dump}'], stdout=subprocess.PIPE)
     return json.loads(pipe.stdout.read())
+
+
+def tag_file(client, bucket, key, tag_key, tag_value):
+    tagset = {'TagSet': [{'Key': tag_key, 'Value': tag_value}]}
+    client.put_object_tagging(Bucket=bucket,
+                              Key=key,
+                              Tagging=tagset)
+
+
+def wait_for_index(client, bucket, key):
+    # Wait until file is not locket to avoid race condition
+    random.seed(datetime.now())
+    while True:
+        try:
+            time.sleep(random.random()*5.0)
+            tags = client.get_object_tagging(Bucket=bucket, Key=key)
+            for tag in tags['TagSet']:
+                print(f'Checking tag: {tag["Key"]}:{tag["Value"]}')
+                if tag['Key'] == 'Lock' and tag['Value'] == 'False':
+                    print("Locking file")
+                    tag_file(client, bucket, key, 'Lock', 'True')
+                    break
+                elif tag['Key'] == 'Lock' and tag['Value'] == 'True':
+                    time.sleep(2.)
+            else:
+                continue
+            break
+        except botocore.exceptions.ClientError as error:
+            if error.response['Error']['Code'] == 'NoSuchKey':
+                # Index file doesn't exists, create an empty one
+                print(f'{bucket}/{key} doesn\'t exist, creating...')
+                client.put_object(Bucket=bucket,
+                                  Key=key,
+                                  Body='{}',
+                                  Tagging='Lock=True')
+                break
+
+
+def invalidate_file_cloudfront(distribution_id, key):
+    client = boto3.client('cloudfront')
+    client.create_invalidation(DistributionId=distribution_id,
+                               InvalidationBatch={
+                                   'Paths': {
+                                       'Quantity': 1,
+                                       'Items': [
+                                           f'/{key}',
+                                       ]
+                                   },
+                                   'CallerReference':  datetime.now().strftime('%Y%m%d%H%M%S')
+                               })

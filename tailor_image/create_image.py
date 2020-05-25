@@ -8,13 +8,20 @@ import sys
 from typing import Any, List
 
 import argparse
-import boto3
-import botocore
 import click
 import yaml
 
-from . import find_package, run_command, source_file
+import boto3
+import botocore
 
+from . import (
+    find_package,
+    run_command,
+    source_file,
+    tag_file,
+    wait_for_index,
+    invalidate_file_cloudfront
+)
 
 def create_image(name: str, distribution: str, apt_repo: str, release_track: str, release_label: str, flavour: str,
                  organization: str, docker_registry: str, rosdistro_path: pathlib.Path, publish: bool = False):
@@ -141,57 +148,85 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
 
     run_command(command, env=env, cwd='/tmp')
 
-    # TODO(gservin): If we build more that one bare metal image at the same time, we can have a race condition here
     if build_type == 'bare_metal' and publish:
         update_image_index(release_track, apt_repo, common_config, image_name)
 
 
 def update_image_index(release_track, apt_repo, common_config, image_name):
+    """Updates the index file used to track bare metal images
+
+    Current format:
+    {
+      "<release_label>": {
+        "<flavour>": {
+          "distribution": {
+            "<distribution>": "<organization>_<flavour>_<distribution>_<release_label>_<date>",
+            ...
+          },
+          "checksums": {
+            "<organization>_<flavour>_<distribution>_<release_label>_<date>": "<md5sum_of_image>",
+          }
+        },
+        "<flavour_2>": {
+        }
+      }
+    }
+    """
+    s3 = boto3.client('s3')
+
+    # Helper methods
+    json.load_s3 = lambda f: json.load(s3.get_object(Bucket=apt_repo, Key=f)['Body'])
+    json.dump_s3 = lambda obj, f: s3.put_object(Bucket=apt_repo,
+                                                Key=f,
+                                                Body=json.dumps(obj, indent=2))
+
     index_key = release_track + '/images/index'
-    s3_object = boto3.resource("s3").Bucket(apt_repo)
-    json.load_s3 = lambda f: json.load(s3_object.Object(key=f).get()["Body"])
-    json.dump_s3 = lambda obj, f: s3_object.Object(key=f).put(Body=json.dumps(obj, indent=2))
-    _, _, distribution, release_label, _ = image_name.split('_')
+
+    _, flavour, distribution, release_label, _ = image_name.split('_')
 
     # Read checksum from generated file
     with open(f'/tmp/{image_name}', 'r') as checksum_file:
         checksum = checksum_file.read().replace('\n', '').split(' ')[0]
     os.remove(f'/tmp/{image_name}')
 
-    data = {'latest': {release_label: {distribution: ''}}}
+    base_data = {
+        release_label: {
+            flavour: {
+                'distributions': {
+                    distribution: image_name
+                },
+                'checksums': {
+                    image_name: checksum
+                }
+            }
+        }
+    }
 
+    data = {}
     try:
+        # Wait for file to be ready to write
+        wait_for_index(s3, apt_repo, index_key)
         data = json.load_s3(index_key)
+        if release_label not in data:
+            data[release_label] = base_data[release_label]
+        elif flavour not in data[release_label]:
+            data[release_label][flavour] = base_data[release_label][flavour]
+        else:
+            # If release_label and flavour already exists, update the image and add checksum
+            data[release_label][flavour]['distributions'][distribution] = image_name
+            data[release_label][flavour]['checksums'][image_name] = checksum
     except botocore.exceptions.ClientError as error:
         # If file doesn't exists, we'll create a new one
-        if error.response['Error']['Code'] == "404":
-            pass
+        if error.response['Error']['Code'] == 'NoSuchKey':
+            data = base_data
 
-    # Update latest image
-    if release_label not in data['latest']:
-        data['latest'][release_label] = {distribution: image_name}
-    else:
-        data['latest'][release_label][distribution] = image_name
-
-    # Add checksum for new image
-    data[image_name] = checksum
-
+    # Write data to index file
     json.dump_s3(data, index_key)
+    tag_file(s3, apt_repo, index_key, 'Lock', 'False')
 
     # Invalidate image index cache
     if 'cloudfront_distribution_id' in common_config:
-        distribution_id = common_config['cloudfront_distribution_id']
-        client = boto3.client('cloudfront')
-        client.create_invalidation(DistributionId=distribution_id,
-                                   InvalidationBatch={
-                                       'Paths': {
-                                           'Quantity': 1,
-                                           'Items': [
-                                               f'/{index_key}',
-                                           ]
-                                       },
-                                       'CallerReference':  datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-                                   })
+        invalidate_file_cloudfront(common_config['cloudfront_distribution_id'], index_key)
 
 
 def main():
