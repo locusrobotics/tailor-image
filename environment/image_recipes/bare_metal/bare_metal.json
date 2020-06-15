@@ -79,7 +79,7 @@
           "mv /etc/resolv.conf.old /etc/resolv.conf",
 
           "echo 'Remove machine-id to ensure we get a unique one for each machine'",
-          "rm /etc/machine-id /var/lib/dbus/machine-id",
+          "rm -f /etc/machine-id /var/lib/dbus/machine-id",
 
           "echo 'Remove unused space on the image'",
           "dd if=/dev/zero of=/EMPTY bs=1M || true",
