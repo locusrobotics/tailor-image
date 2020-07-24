@@ -91,6 +91,9 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         # Get information about base image
         base_image = recipe[name]['base_image'].replace('$distribution', distribution)
 
+        # Get disk size to use
+        disk_size = recipe.get('disk_size', 9) # In GB
+
         # Get base image
         base_image_local_path = '/tmp/' + base_image
         base_image_key = release_track + '/images/' + base_image
@@ -101,7 +104,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         run_command(['modprobe', 'nbd'])
 
         # Resize image
-        run_command(['qemu-img', 'resize', base_image_local_path, '+9G'])
+        run_command(['qemu-img', 'resize', base_image_local_path, f'+{disk_size}G'])
 
         # Copy image
         tmp_image = base_image_local_path.replace('disk1', 'disk1-resized')
