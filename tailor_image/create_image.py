@@ -92,7 +92,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         base_image = recipe[name]['base_image'].replace('$distribution', distribution)
 
         # Get disk size to use
-        disk_size = recipe.get('disk_size', 9) # In GB
+        disk_size = recipe[name].get('disk_size', 9) # In GB
 
         # Get base image
         base_image_local_path = '/tmp/' + base_image
