@@ -22,6 +22,7 @@ pipeline {
     string(name: 'release_label', defaultValue: 'hotdog')
     string(name: 'num_to_keep', defaultValue: '10')
     string(name: 'days_to_keep', defaultValue: '10')
+    string(name: 'retries', defaultValue: '3')
     string(name: 'docker_registry')
     string(name: 'tailor_meta')
     string(name: 'apt_repo')
@@ -135,34 +136,36 @@ pipeline {
             jobs << tmp_distributions.collectEntries { distribution ->
               ["${image}-${distribution}", { node {
                 try {
-                  dir('tailor-image') {
-                    checkout(scm)
-                  }
-                  unstash(name: 'rosdistro')
+                  retry(params.retries as Integer) {
+                    dir('tailor-image') {
+                      checkout(scm)
+                    }
+                    unstash(name: 'rosdistro')
 
-                  def parent_image = docker.image(parentImage(params.release_label, params.docker_registry))
-                  docker.withRegistry(params.docker_registry, docker_credentials) {
-                    parent_image.pull()
-                  }
+                    def parent_image = docker.image(parentImage(params.release_label, params.docker_registry))
+                    docker.withRegistry(params.docker_registry, docker_credentials) {
+                      parent_image.pull()
+                    }
 
-                  withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
-                    parent_image.inside("-v /var/run/docker.sock:/var/run/docker.sock -v /lib/modules:/lib/modules " +
-                                        "-v /dev:/dev -v /boot:/boot --cap-add=ALL --privileged " +
-                                        "--env AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
-                                        "--env AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY") {
-                      sh("""#!/bin/bash
-                            sudo -E create_image \
-                            --name ${image} \
-                            --distribution ${distribution} \
-                            --apt-repo ${params.apt_repo - 's3://'} \
-                            --release-track ${params.release_track} \
-                            --release-label ${params.release_label} \
-                            --flavour ${testing_flavour} \
-                            --organization ${organization} \
-                            --docker-registry ${params.docker_registry} \
-                            --rosdistro-path /rosdistro \
-                            ${params.deploy ? '--publish' : ''}
-                         """)
+                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
+                      parent_image.inside("-v /var/run/docker.sock:/var/run/docker.sock -v /lib/modules:/lib/modules " +
+                                          "-v /dev:/dev -v /boot:/boot --cap-add=ALL --privileged " +
+                                          "--env AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
+                                          "--env AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY") {
+                        sh("""#!/bin/bash
+                              sudo -E create_image \
+                              --name ${image} \
+                              --distribution ${distribution} \
+                              --apt-repo ${params.apt_repo - 's3://'} \
+                              --release-track ${params.release_track} \
+                              --release-label ${params.release_label} \
+                              --flavour ${testing_flavour} \
+                              --organization ${organization} \
+                              --docker-registry ${params.docker_registry} \
+                              --rosdistro-path /rosdistro \
+                              ${params.deploy ? '--publish' : ''}
+                           """)
+                      }
                     }
                   }
                 } finally {
