@@ -146,7 +146,7 @@ pipeline {
                       sh("""#!/bin/bash
                             sudo -E create_image --name ${image} \
                             --distribution ${distribution} --apt-repo ${params.apt_repo - 's3://'} \
-                            --release-track 19.7 --release-label 19.7.5 \
+                            --release-track 19.7 --release-label 19.7.7 \
                             --flavour dev --organization ${organization} ${params.deploy ? '--publish' : ''} \
                             --docker-registry ${params.docker_registry} --rosdistro-path /rosdistro
                          """)
