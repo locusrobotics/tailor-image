@@ -93,7 +93,7 @@ pipeline {
             parent_image = docker.build(parent_image_label,
               "-f tailor-image/environment/Dockerfile --cache-from ${parent_image_label} " +
               "--build-arg APT_REPO=s3://locus-tailor-artifacts " +
-              "--build-arg RELEASE_LABEL=19.7.5 " +
+              "--build-arg RELEASE_LABEL=19.7.7 " +
               "--build-arg RELEASE_TRACK=19.7 " +
               "--build-arg FLAVOUR=dev " +
               "--build-arg ORGANIZATION=locusrobotics " +
