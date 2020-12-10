@@ -96,7 +96,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
 
         # Get base image
         base_image_local_path = '/tmp/' + base_image
-        base_image_key = release_track + '/images/' + base_image
+        base_image_key = release_label + '/images/' + base_image
         click.echo(f'Downloading image from {base_image_key}')
         boto3.resource('s3').Bucket(apt_repo).download_file(base_image_key, base_image_local_path)
 
@@ -152,10 +152,10 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     run_command(command, env=env, cwd='/tmp')
 
     if build_type == 'bare_metal' and publish:
-        update_image_index(release_track, apt_repo, common_config, image_name)
+        update_image_index(release_label, apt_repo, common_config, image_name)
 
 
-def update_image_index(release_track, apt_repo, common_config, image_name):
+def update_image_index(release_label, apt_repo, common_config, image_name):
     """Updates the index file used to track bare metal images
 
     Current format:
@@ -183,7 +183,7 @@ def update_image_index(release_track, apt_repo, common_config, image_name):
                                                 Key=f,
                                                 Body=json.dumps(obj, indent=2))
 
-    index_key = release_track + '/images/index'
+    index_key = release_label + '/images/index'
 
     _, flavour, distribution, release_label, _ = image_name.split('_')
 
