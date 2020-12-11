@@ -1,10 +1,10 @@
 #!/usr/bin/python3
-import datetime
 import json
 import os
 import pathlib
 import sys
 
+from datetime import datetime
 from typing import Any, List
 
 import argparse
@@ -44,7 +44,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     distro = recipe[name]['distro']
     build_type = recipe[name]['build_type']
     env = source_file(f'{os.environ["BUNDLE_ROOT"]}/{distro}/setup.bash')
-    today = datetime.date.today().strftime('%Y%m%d')
+    today = datetime.now().strftime('%Y%m%d%H%M%S')
     extra_vars: List[Any] = []
 
     try:
@@ -160,19 +160,17 @@ def update_image_index(release_label, apt_repo, common_config, image_name):
 
     Current format:
     {
-      "<release_label>": {
-        "<flavour>": {
-          "distribution": {
-            "<distribution>": "<organization>_<flavour>_<distribution>_<release_label>_<date>",
-            ...
-          },
-          "checksums": {
-            "<organization>_<flavour>_<distribution>_<release_label>_<date>": "<md5sum_of_image>",
+      "<date.time>": {
+        "raw": {
+          "bot": {
+            "<distribution>": {
+              "file": "<organization>_<flavour>_<distribution>_<release_label>_<date><time>",
+              "checksum": <md5sum_of_image>
+            }
           }
-        },
-        "<flavour_2>": {
         }
-      }
+      },
+      ...
     }
     """
     s3 = boto3.client('s3')
@@ -185,21 +183,19 @@ def update_image_index(release_label, apt_repo, common_config, image_name):
 
     index_key = release_label + '/images/index'
 
-    _, flavour, distribution, release_label, _ = image_name.split('_')
+    _, flavour, distribution, release_label, date_time = image_name.split('_')
 
     # Read checksum from generated file
     with open(f'/tmp/{image_name}', 'r') as checksum_file:
         checksum = checksum_file.read().replace('\n', '').split(' ')[0]
     os.remove(f'/tmp/{image_name}')
 
-    base_data = {
-        release_label: {
+    image_data = {
+        'raw': {
             flavour: {
-                'distributions': {
-                    distribution: image_name
-                },
-                'checksums': {
-                    image_name: checksum
+                distribution: {
+                    'file': image_name,
+                    'checksum': checksum
                 }
             }
         }
@@ -210,18 +206,12 @@ def update_image_index(release_label, apt_repo, common_config, image_name):
         # Wait for file to be ready to write
         wait_for_index(s3, apt_repo, index_key)
         data = json.load_s3(index_key)
-        if release_label not in data:
-            data[release_label] = base_data[release_label]
-        elif flavour not in data[release_label]:
-            data[release_label][flavour] = base_data[release_label][flavour]
-        else:
-            # If release_label and flavour already exists, update the image and add checksum
-            data[release_label][flavour]['distributions'][distribution] = image_name
-            data[release_label][flavour]['checksums'][image_name] = checksum
     except botocore.exceptions.ClientError as error:
         # If file doesn't exists, we'll create a new one
         if error.response['Error']['Code'] == 'NoSuchKey':
-            data = base_data
+            click.echo('Index file doesn\'t exist, creating a new one')
+
+    data[date_time] = image_data
 
     # Write data to index file
     json.dump_s3(data, index_key)
