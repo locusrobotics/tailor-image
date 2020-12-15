@@ -101,7 +101,7 @@
           "rm -f images/{{user `image_name`}}.raw",
 
           "echo 'Uploading compressed image to S3...'",
-          "aws s3 cp images/{{user `image_name`}}.raw.xz s3://{{user `s3_bucket`}}/{{user `bundle_track`}}/images/",
+          "aws s3 cp images/{{user `image_name`}}.raw.xz s3://{{user `s3_bucket`}}/{{user `bundle_version`}}/images/",
           "md5sum images/{{user `image_name`}}.raw.xz > /tmp/{{user `image_name`}}",
           "rm -f images/{{user `image_name`}}.raw.xz",
 
