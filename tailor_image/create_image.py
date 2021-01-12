@@ -4,7 +4,6 @@ import os
 import pathlib
 import sys
 
-from datetime import datetime
 from typing import Any, List
 
 import argparse
@@ -16,6 +15,7 @@ import botocore
 
 from . import (
     find_package,
+    merge_dicts,
     run_command,
     source_file,
     tag_file,
@@ -23,8 +23,10 @@ from . import (
     invalidate_file_cloudfront
 )
 
+
 def create_image(name: str, distribution: str, apt_repo: str, release_track: str, release_label: str, flavour: str,
-                 organization: str, docker_registry: str, rosdistro_path: pathlib.Path, publish: bool = False):
+                 organization: str, docker_registry: str, rosdistro_path: pathlib.Path, timestamp:str,
+                 publish: bool = False):
     """Create different type of images based on recipes
     :param name: Name for the image
     :param distribution: Ubuntu distribution to build the image against
@@ -35,6 +37,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     :param organization: Name of the organization
     :param docker_registry: URL for the docker registry to use to push images from/to
     :param rosdistro_path: Path for the rosdistro configuration files
+    :param timestamp: Timestamp of the current image build
     :param publish: Whether to publish the images
     """
 
@@ -44,7 +47,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     distro = recipe[name]['distro']
     build_type = recipe[name]['build_type']
     env = source_file(f'{os.environ["BUNDLE_ROOT"]}/{distro}/setup.bash')
-    today = datetime.now().strftime('%Y%m%d%H%M%S')
+    today = timestamp
     extra_vars: List[Any] = []
 
     try:
@@ -160,7 +163,7 @@ def update_image_index(release_label, apt_repo, common_config, image_name):
 
     Current format:
     {
-      "<date.time>": {
+      "<timestamp>": {
         "raw": {
           "bot": {
             "<distribution>": {
@@ -183,7 +186,7 @@ def update_image_index(release_label, apt_repo, common_config, image_name):
 
     index_key = release_label + '/images/index'
 
-    _, flavour, distribution, release_label, date_time = image_name.split('_')
+    _, flavour, distribution, release_label, timestamp = image_name.split('_')
 
     # Read checksum from generated file
     with open(f'/tmp/{image_name}', 'r') as checksum_file:
@@ -211,7 +214,10 @@ def update_image_index(release_label, apt_repo, common_config, image_name):
         if error.response['Error']['Code'] == 'NoSuchKey':
             click.echo('Index file doesn\'t exist, creating a new one')
 
-    data[date_time] = image_data
+    try:
+        data[timestamp] = merge_dicts(data[timestamp], image_data)
+    except KeyError:
+        data[timestamp] = image_data
 
     # Write data to index file
     json.dump_s3(data, index_key)
@@ -234,6 +240,7 @@ def main():
     parser.add_argument('--publish', action='store_true')
     parser.add_argument('--docker-registry', type=str)
     parser.add_argument('--rosdistro-path', type=pathlib.Path)
+    parser.add_argument('--timestamp', type=str)
 
     args = parser.parse_args()
 

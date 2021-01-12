@@ -13,6 +13,8 @@ def images = null
 def organization = null
 def testing_flavour = null
 
+def timestamp = new Date().format("yyyyMMddHHmmss")
+
 pipeline {
   agent none
 
@@ -163,6 +165,7 @@ pipeline {
                               --organization ${organization} \
                               --docker-registry ${params.docker_registry} \
                               --rosdistro-path /rosdistro \
+                              --timestamp ${timestamp} \
                               ${params.deploy ? '--publish' : ''}
                            """)
                       }
