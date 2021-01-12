@@ -214,9 +214,9 @@ def update_image_index(release_label, apt_repo, common_config, image_name):
         if error.response['Error']['Code'] == 'NoSuchKey':
             click.echo('Index file doesn\'t exist, creating a new one')
 
-    if timestamp in data:
+    try:
         data[timestamp] = merge_dicts(data[timestamp], image_data)
-    else:
+    except KeyError:
         data[timestamp] = image_data
 
     # Write data to index file
