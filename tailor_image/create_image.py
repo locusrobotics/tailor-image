@@ -215,7 +215,7 @@ def update_image_index(release_label, apt_repo, common_config, image_name):
             click.echo('Index file doesn\'t exist, creating a new one')
 
     if timestamp in data:
-        data[timestamp] = merge(data[timestamp], image_data)
+        data[timestamp] = merge_dicts(data[timestamp], image_data)
     else:
         data[timestamp] = image_data
 
