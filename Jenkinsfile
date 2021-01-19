@@ -13,7 +13,7 @@ def images = null
 def organization = null
 def testing_flavour = null
 
-def timestamp = new Date().format("yyyyMMddHHmmss")
+def timestamp = new Date().format("yyyyMMdd.HHmmss")
 
 pipeline {
   agent none
