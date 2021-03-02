@@ -136,6 +136,9 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         extra_vars = [
             '-var', f'build_date={today}',
             '-var', f'image_name={image_name}',
+            '-var', f'name={name}',
+            '-var', f'distribution={distribution}',
+            '-var', f'release_label={release_label}',
             '-var', f'aws_access_key={os.environ["AWS_ACCESS_KEY_ID"]}',
             '-var', f'aws_secret_key={os.environ["AWS_SECRET_ACCESS_KEY"]}'
         ]

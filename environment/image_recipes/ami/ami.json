@@ -54,9 +54,13 @@
       ],
 
       "tags": {
-        "Name": "{{user `image_name`}}",
+        "Name": "{{user `name`}}",
+        "Distribution": "{{user `distribution`}}",
+        "Release Label": "{{user `release_label`}}",
         "Build Date": "{{user `build_date`}}",
-        "Comment": "{{user `image_description`}}"
+        "Comment": "{{user `image_description`}}",
+        "Bundle Track": "{{user `bundle_track` }}",
+        "Bundle Version": "{{user `bundle_version` }}"
       }
     }
   ],
