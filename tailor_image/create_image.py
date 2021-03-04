@@ -101,7 +101,15 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         base_image_local_path = '/tmp/' + base_image
         base_image_key = release_label + '/images/' + base_image
         click.echo(f'Downloading image from {base_image_key}')
-        boto3.resource('s3').Bucket(apt_repo).download_file(base_image_key, base_image_local_path)
+        try:
+            boto3.resource('s3').Bucket(apt_repo).download_file(base_image_key, base_image_local_path)
+        except botocore.exceptions.ClientError:
+            click.echo(f'Unable to download base image from {base_image_key}, creating a new one')
+            run_command(['bash',
+                         '/tailor-image/environment/create_base_image.bash',
+                         f'{base_image_local_path}',
+                         f'{distribution}'])
+            boto3.resource('s3').Bucket(apt_repo).upload_file(base_image_local_path, base_image_key)
 
         # Enable nbd kernel module, necesary for qemu's packer chroot builder
         run_command(['modprobe', 'nbd'])
