@@ -79,8 +79,7 @@ RUN echo "tailor ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers
 RUN apt-get update && apt-get install -y apt-transport-https apt-transport-s3 && \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 142D5F1683E1528B
 
-RUN wget -O /usr/lib/apt/methods/s3 https://raw.githubusercontent.com/locusrobotics/apt-transport-s3/https/s3 && \
-    echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_LABEL}/ubuntu focal main" >> /etc/apt/sources.list && \
+RUN echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_LABEL}/ubuntu focal main" >> /etc/apt/sources.list && \
     echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_LABEL}/ubuntu focal-mirror main" >> /etc/apt/sources.list
 
 # Create auth config file for accesing s3 via apt
@@ -90,7 +89,7 @@ RUN echo "AccessKeyId = $AWS_ACCESS_KEY_ID" | tee /etc/apt/s3auth.conf && \
 
 RUN apt-get update && \
     RTI_NC_LICENSE_ACCEPTED=yes apt-get install -qy\
-    python-catkin-tools \
+    python3-catkin-tools \
     ${ORGANIZATION}-${FLAVOUR}-${RELEASE_LABEL}
 
 USER tailor
