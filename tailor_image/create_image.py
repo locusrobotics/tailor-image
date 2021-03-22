@@ -143,17 +143,10 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     elif build_type == 'ami':
         image_name = f'{organization}_{name}_{distribution}_ami_{release_label}'
         # Get ami-id for base image
-        ec2 = boto3.client('ec2')
-        source_image_name = recipe[name]['source_ami'].replace('$distribution', distribution)
-        source_ami_id = None
-        images = ec2.describe_images(Owners=['self'])['Images']
-        for image in images:
-            if source_image_name in image['Name']:
-                source_ami_id = image['ImageId']
-                break
+        source_ami_id = recipe[name]['source_ami'].get(distribution)
 
         if not source_ami_id:
-            click.echo(f'Base AMI doesn\'t exists, you tried to get {source_image_name}')
+            click.echo(f'You need to specify a bas AMI for the desired distribution {distribution}')
             sys.exit(1)
 
         extra_vars = [
