@@ -63,7 +63,8 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
 
     optional_vars = []
     optional_var_names = ['username', 'password', 'extra_arguments_ansible',
-                          'ansible_command', 'source_ami', 'description', 'disk_size', 'group']
+                          'ansible_command', 'description', 'disk_size', 'group']
+
     for var in optional_var_names:
         if var in recipe[name]:
             optional_vars.extend(['-var', f'{var}={recipe[name][var]}'])
@@ -141,10 +142,18 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
 
     elif build_type == 'ami':
         image_name = f'{organization}_{name}_{distribution}_ami_{release_label}'
+        # Get ami-id for base image
+        source_ami_id = recipe[name]['source_ami'].get(distribution)
+
+        if not source_ami_id:
+            click.echo(f'You need to specify a bas AMI for the desired distribution {distribution}')
+            sys.exit(1)
+
         extra_vars = [
             '-var', f'build_date={today}',
             '-var', f'image_name={image_name}',
             '-var', f'name={name}',
+            '-var', f'source_ami_id={source_ami_id}',
             '-var', f'distribution={distribution}',
             '-var', f'release_label={release_label}',
             '-var', f'aws_access_key={os.environ["AWS_ACCESS_KEY_ID"]}',
