@@ -53,7 +53,7 @@ RUN apt-get update -qq && apt-get install -qqy \
     xz-utils
 
 # Install Docker from Docker Inc. repositories.
-RUN curl -sSL https://get.docker.com/ | VERSION=5:19.03.2 sh
+RUN curl -sSL https://get.docker.com/ | VERSION=5:20.10.5 sh
 
 # Install packer
 RUN curl -sSL https://releases.hashicorp.com/packer/1.4.1/packer_1.4.1_linux_amd64.zip > packer.zip && \
