@@ -28,7 +28,7 @@ def run_command(cmd, check=True, *args, **kwargs):
 
 
 def source_file(path):
-    dump = '/usr/bin/python -c "import os, json; print json.dumps(dict(os.environ))"'
+    dump = '/usr/bin/python3 -c "import os, json; print(json.dumps(dict(os.environ)))"'
     pipe = subprocess.Popen(['/bin/bash', '-c', f'source {path} && {dump}'], stdout=subprocess.PIPE)
     return json.loads(pipe.stdout.read())
 
