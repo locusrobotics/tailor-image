@@ -4,22 +4,20 @@
   tasks:
   - name: Install desired packages
     apt:
-      pkg: "{{ item }}"
+      pkg:
+        - vim
       state: present
-    with_items:
-      - vim
-    update_cache: true
+      update_cache: yes
     become: true
 
   - name: Install necessary packages
     apt:
-      pkg: "{{ item }}"
+      pkg:
+        - python3-rosdep
+        - ca-certificates
       state: present
-    with_items:
-      - python-rosdep
-      - ca-certificates
-    update_cache: true
+      update_cache: yes
     become: true
+
   - name: Run rosdep init
-    command: rosdep init
-    become: true
+    command: rosdep update
