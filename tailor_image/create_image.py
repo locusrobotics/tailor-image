@@ -135,8 +135,6 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
             '-var', f'iso_image={base_image_local_path}',
         ]
 
-        extra_vars.extend(optional_vars)
-
         # Make sure to clean old image builds
         run_command(['rm', '-rf', '/tmp/images'])
 
