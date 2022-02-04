@@ -147,6 +147,10 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
             click.echo(f'You need to specify a bas AMI for the desired distribution {distribution}')
             sys.exit(1)
 
+        # Increase fow how long we wait for image to be ready. Default is 30 minutes, sometime it might take longer
+        env['AWS_MAX_ATTEMPTS'] = '90' # minutes
+        env['AWS_POLL_DELAY_SECONDS'] = '60' # Poll for status every minute
+
         extra_vars = [
             '-var', f'build_date={today}',
             '-var', f'image_name={image_name}',
