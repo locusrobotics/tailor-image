@@ -56,11 +56,11 @@ RUN apt-get update -qq && apt-get install --no-install-recommends -qqy \
 RUN curl -sSL https://get.docker.com/ | VERSION=5:20.10.5 sh
 
 # Install packer
-RUN curl -sSL https://releases.hashicorp.com/packer/1.4.1/packer_1.4.1_linux_amd64.zip > packer.zip && \
+RUN curl -sSL https://releases.hashicorp.com/packer/1.7.8/packer_1.7.8_linux_amd64.zip > packer.zip && \
     unzip packer.zip -d /usr/local/bin && \
     rm packer.zip
-RUN curl -sSlL https://github.com/summerwind/packer-builder-qemu-chroot/releases/download/v1.1.0/packer-builder-qemu-chroot_linux_amd64.tar.gz > packer_qemu_chroot.tar.gz && \
-    tar xf packer_qemu_chroot.tar.gz && mv packer-builder-qemu-chroot /usr/local/bin/packer-builder-qemu-chroot && \
+RUN curl -sSlL https://github.com/locusrobotics/packer-builder-qemu-chroot/releases/download/v1.1.0-u1/packer-builder-qemu-chroot_linux_amd64.tar.gz > packer_qemu_chroot.tar.gz && \
+    tar xf packer_qemu_chroot.tar.gz && mv packer-plugin-qemu-chroot /usr/local/bin/packer-plugin-qemu-chroot && \
     rm packer_qemu_chroot.tar.gz
 
 COPY tailor-image tailor-image
