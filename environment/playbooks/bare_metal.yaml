@@ -1,6 +1,8 @@
 ---
 - name: Provision a single robot image
   hosts: "/mnt/bare_metal"
+  environment:
+    HOME: "/home/{{ ansible_user }}"
   tasks:
   - name: Install desired packages
     apt:
