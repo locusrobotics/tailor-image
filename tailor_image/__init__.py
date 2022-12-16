@@ -42,7 +42,9 @@ def tag_file(client, bucket, key, tag_key, tag_value):
 
 def wait_for_index(client, bucket, key):
     # Wait until file is not locket to avoid race condition
-    random.seed(datetime.now())
+    start_time = datetime.now()
+    random.seed(start_time)
+    timeout = 300 + random.random() * 300  # random timeout from 5 to 10 minutes
     while True:
         try:
             time.sleep(random.random()*5.0)
@@ -54,6 +56,9 @@ def wait_for_index(client, bucket, key):
                     tag_file(client, bucket, key, 'Lock', 'True')
                     break
                 elif tag['Key'] == 'Lock' and tag['Value'] == 'True':
+                    # If timeout is reached, allow writing to index
+                    if datetime.now() - start_time >= timeout:
+                        break
                     time.sleep(2.)
             else:
                 continue
