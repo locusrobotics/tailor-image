@@ -57,7 +57,8 @@ def wait_for_index(client, bucket, key):
                     break
                 elif tag['Key'] == 'Lock' and tag['Value'] == 'True':
                     # If timeout is reached, allow writing to index
-                    if datetime.now() - start_time >= timeout:
+                    time_delta = datetime.now() - start_time
+                    if time_delta.total_seconds() >= timeout:
                         break
                     time.sleep(2.)
             else:
