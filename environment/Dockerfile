@@ -15,6 +15,7 @@ ENV GITHUB_TOKEN ${GITHUB_TOKEN}
 
 ARG ANSIBLE_VAULT_PASS
 ARG APT_REPO
+ARG APT_REGION
 ARG RELEASE_LABEL
 ARG RELEASE_TRACK
 ARG ORGANIZATION
@@ -85,7 +86,8 @@ RUN echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_LABEL}/ubuntu focal main" >> /e
 # Create auth config file for accesing s3 via apt
 RUN echo "AccessKeyId = $AWS_ACCESS_KEY_ID" | tee /etc/apt/s3auth.conf && \
     echo "SecretAccessKey = $AWS_SECRET_ACCESS_KEY" | tee -a /etc/apt/s3auth.conf && \
-    echo "Token = ''" | tee -a /etc/apt/s3auth.conf
+    echo "Token = ''" | tee -a /etc/apt/s3auth.conf && \
+    echo "Region = '${APT_REGION}'" | tee -a /etc/apt/s3auth.conf
 
 RUN apt-get update && \
     RTI_NC_LICENSE_ACCEPTED=yes apt-get install --no-install-recommends -qy\
