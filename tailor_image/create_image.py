@@ -177,7 +177,33 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     run_command(command, env=env, cwd='/tmp')
 
     if build_type == 'bare_metal' and publish:
+        copy_old_images(release_label, apt_repo, common_config, image_name)
         update_image_index(release_label, apt_repo, common_config, image_name)
+
+
+def copy_old_images(release_label, apt_repo, common_config, image_name):
+    """Copy new images to use the old flavours."""
+    # Only run for origin images
+    if 'origin' not in image_name:
+        return
+
+    s3 = boto3.resource('s3')
+    bucket = s3.Bucket(apt_repo)
+
+    source = {
+      'Bucket': apt_repo,
+      'Key': f'{release_label}/images/{image_name}.raw.xz'
+    }
+
+    # Remap flavours
+    new_image_name = image_name.replace('_origin1_', '_bot_').replace('origin2', '_r2_')
+    bucket.copy(source, new_image_name)
+
+    # Copy md5sum file
+    run_command(['cp', f'/tmp/{image_name}', f'/tmp/{new_image_name}'], check=False)
+
+    # Update index file for the new image
+    update_image_index(release_label, apt_repo, common_config, new_image_name)
 
 
 def update_image_index(release_label, apt_repo, common_config, image_name):
