@@ -83,6 +83,7 @@
 
           "echo 'Add image version file to image'",
           "echo '{\"active_version\": \"{{ user `image_name` }}\"}' | tee -a /home/{{ user `username` }}/.ota.json",
+          "chown {{ user `username` }}:{{ user `username` }} /home/{{ user `username` }}/.ota.json",
 
           "echo 'Remove unused space on the image'",
           "dd if=/dev/zero of=/EMPTY bs=1M || true",
