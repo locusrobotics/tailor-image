@@ -91,7 +91,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         # Make sure we remove old containers before creting new ones
         run_command(['docker', 'rm', '-f', 'default'], check=False)
 
-    elif build_type == 'bare_metal' and publish:
+    elif build_type in ['bare_metal', 'lxd'] and publish:
         # Get information about base image
         base_image = recipe[name]['base_image'].replace('$distribution', distribution)
 
@@ -133,6 +133,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
             '-var', f'image_name={image_name}',
             '-var', f's3_bucket={apt_repo}',
             '-var', f'iso_image={base_image_local_path}',
+            '-var', f'distribution={distribution}'
         ]
 
         # Make sure to clean old image builds
@@ -176,7 +177,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
 
     run_command(command, env=env, cwd='/tmp')
 
-    if build_type == 'bare_metal' and publish:
+    if build_type in ['bare_metal', 'lxd'] and publish:
         update_image_index(release_label, apt_repo, common_config, image_name)
 
 

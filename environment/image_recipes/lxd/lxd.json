@@ -101,16 +101,29 @@
           "qemu-img convert images/{{user `image_name`}}.qcow2 images/{{user `image_name`}}.raw",
           "rm -f images/{{user `image_name`}}.qcow2",
 
+          "echo 'Mounting image'",
+          "mkdir -p $(pwd)/rootfs",
+          "echo $(pwd)",
+          "loop_device=$(sudo losetup -f -P --show images/{{user `image_name`}}.raw)",
+          "echo 'loop_device = '$loop_device",
+          "mount ${loop_device}p1 $(pwd)/rootfs",
+
+          "echo 'Creating metadata file'",
+          "echo \"architecture: x86_64\ncreation_date: $(date +%s)\nproperties:\n  description: {{user `organization`}} {{user `image_name`}} LXD image\n  os: Ubuntu\n  release: {{user `distribution`}}\" > $(pwd)/metadata.yaml",
+
           "echo 'Compressing generated image...'",
-          "xz -k images/{{user `image_name`}}.raw -c --verbose --threads=0 > images/{{user `image_name`}}.raw.xz",
+          "tar -czf images/{{user `image_name`}}.tar.gz rootfs metadata.yaml",
           "rm -f images/{{user `image_name`}}.raw",
 
           "echo 'Uploading compressed image to S3...'",
-          "aws s3 cp images/{{user `image_name`}}.raw.xz s3://{{user `s3_bucket`}}/{{user `bundle_version`}}/images/",
-          "md5sum images/{{user `image_name`}}.raw.xz > /tmp/{{user `image_name`}}",
-          "rm -f images/{{user `image_name`}}.raw.xz",
+          "aws s3 cp images/{{user `image_name`}}.tar.gz s3://{{user `s3_bucket`}}/{{user `bundle_version`}}/images/",
+          "md5sum images/{{user `image_name`}}.tar.gz > /tmp/{{user `image_name`}}",
+          "rm -f images/{{user `image_name`}}.tar.gz",
 
           "echo 'Removing generated images...'",
+          "umount -l $(pwd)/rootfs",
+          "losetup -d ${loop_device}",
+          "rm -rf metadata.yaml",
           "rm -rf images"
       ]
     }
