@@ -103,9 +103,7 @@
 
           "echo 'Mounting image'",
           "mkdir -p $(pwd)/rootfs",
-          "echo $(pwd)",
-          "loop_device=$(sudo losetup -f -P --show images/{{user `image_name`}}.raw)",
-          "echo 'loop_device = '$loop_device",
+          "loop_device=$(losetup -f -P --show images/{{user `image_name`}}.raw)",
           "mount ${loop_device}p1 $(pwd)/rootfs",
 
           "echo 'Creating metadata file'",
