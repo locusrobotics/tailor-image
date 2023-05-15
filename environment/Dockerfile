@@ -91,8 +91,9 @@ RUN echo "AccessKeyId = $AWS_ACCESS_KEY_ID" | tee /etc/apt/s3auth.conf && \
 
 RUN apt-get update && \
     RTI_NC_LICENSE_ACCEPTED=yes apt-get install --no-install-recommends -qy\
-    python3-catkin-tools \
     ${ORGANIZATION}-${FLAVOUR}-${RELEASE_LABEL}
+
+RUN pip3 install -U catkin_tools
 
 USER tailor
 
