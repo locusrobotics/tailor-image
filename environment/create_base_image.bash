@@ -3,11 +3,11 @@
 name=$1
 distro=$2
 
-# Make a 2048M disk
-dd if=/dev/zero of=$name.raw bs=1024 count=1 seek=2048000
+# Create a 3072M disk (final disk size would be smaller)
+dd if=/dev/zero of=$name.raw bs=1024 count=1 seek=3072000
 
 # Partition
-parted -s $name.raw -- mklabel msdos mkpart primary 1m 2048m toggle 1 boot
+parted -s $name.raw -- mklabel msdos mkpart primary 1m 3072m toggle 1 boot
 
 # Setup loopback debice
 loopback=$(losetup --show -f $name.raw)
