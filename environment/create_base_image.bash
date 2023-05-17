@@ -1,5 +1,7 @@
 #! /bin/bash
 
+set -e
+
 name=$1
 distro=$2
 
