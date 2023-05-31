@@ -96,7 +96,8 @@
         "{{ user `extra_arguments_ansible` }}",
         "-e bundle_track={{user `bundle_track`}}",
         "-e bundle_version={{user `bundle_version`}}",
-        "-v"
+        "--scp-extra-args", "'-O'",
+        "--ssh-extra-args", "-o IdentitiesOnly=yes -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa"
       ]
     }
   ]
