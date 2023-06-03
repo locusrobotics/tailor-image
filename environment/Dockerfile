@@ -57,7 +57,7 @@ RUN apt-get update -qq && apt-get install --no-install-recommends -qqy \
 RUN curl -sSL https://get.docker.com/ | VERSION=5:23.0.6 sh
 
 # Install packer
-RUN curl -sSL https://releases.hashicorp.com/packer/1.7.8/packer_1.7.8_linux_amd64.zip > packer.zip && \
+RUN curl -sSL https://releases.hashicorp.com/packer/1.9.1/packer_1.9.1_linux_amd64.zip > packer.zip && \
     unzip packer.zip -d /usr/local/bin && \
     rm packer.zip
 RUN curl -sSlL https://github.com/locusrobotics/packer-builder-qemu-chroot/releases/download/v1.1.0-u1/packer-builder-qemu-chroot_linux_amd64.tar.gz > packer_qemu_chroot.tar.gz && \
