@@ -84,6 +84,8 @@
 
           "echo 'Add image version file to image'",
           "echo '{\"active_version\": \"{{ user `image_name` }}\"}' | tee -a /home/{{ user `username` }}/.ota.json",
+
+          "echo 'Fix permissions in the home directory'",
           "chown -R {{ user `username` }}:{{ user `username` }} /home/{{ user `username` }}",
 
           "echo 'Remove unused space on the image'",
