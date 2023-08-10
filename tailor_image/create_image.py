@@ -116,7 +116,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         run_command(['modprobe', 'nbd'])
 
         # Resize image
-        run_command(['qemu-img', 'resize', base_image_local_path, f'+{disk_size}G'])
+        run_command(['qemu-img', 'resize', base_image_local_path, '30G'])
 
         # Copy image
         tmp_image = base_image_local_path.replace('disk1', 'disk1-resized')
@@ -133,7 +133,8 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
             '-var', f'image_name={image_name}',
             '-var', f's3_bucket={apt_repo}',
             '-var', f'iso_image={base_image_local_path}',
-            '-var', f'distribution={distribution}'
+            '-var', f'distribution={distribution}',
+            '-var', f'disk_size={disk_size}'
         ]
 
         # Make sure to clean old image builds

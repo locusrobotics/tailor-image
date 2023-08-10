@@ -17,6 +17,7 @@
     "inventory": "/mnt/bare_metal,",
 
     "s3_bucket": "tailor-artifacts",
+    "disk_size": "15",
 
     "iso_image": ""
   },
@@ -99,6 +100,13 @@
     {
       "type": "shell-local",
       "inline": [
+          "echo 'Resize image'",
+          "qemu-nbd -c /dev/nbd0 images/{{user `image_name`}}.qcow2",
+          "e2fsck -y -f /dev/nbd0p1",
+          "resize2fs /dev/nbd0p1 {{user `disk_size`}}G",
+          "qemu-nbd -d /dev/nbd0",
+          "qemu-img resize --shrink images/{{user `image_name`}}.qcow2 {{user `disk_size`}}G",
+
           "echo 'Converting image to RAW...'",
           "qemu-img convert images/{{user `image_name`}}.qcow2 images/{{user `image_name`}}.raw",
           "rm -f images/{{user `image_name`}}.qcow2",
