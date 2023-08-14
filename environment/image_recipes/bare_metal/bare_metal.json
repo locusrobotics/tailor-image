@@ -103,7 +103,7 @@
           "echo 'Resize image'",
           "qemu-nbd -c /dev/nbd0 images/{{user `image_name`}}.qcow2",
           "e2fsck -y -f /dev/nbd0p1",
-          "resize2fs /dev/nbd0p1 {{user `disk_size`}}G",
+          "resize2fs /dev/nbd0p1 -M",
           "qemu-nbd -d /dev/nbd0",
           "qemu-img resize --shrink images/{{user `image_name`}}.qcow2 {{user `disk_size`}}G",
 
