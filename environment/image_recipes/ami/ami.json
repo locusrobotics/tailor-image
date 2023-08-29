@@ -17,7 +17,7 @@
     "aws_secret_key": "",
     "aws_region": "us-east-1",
 
-    "source_ami_id": "ami-0020b6146661a8fe7",
+    "source_ami_id": "ami-080564052395c4a5a",
     "instance_type": "t2.medium",
 
     "ansible_command": "ansible-playbook",
