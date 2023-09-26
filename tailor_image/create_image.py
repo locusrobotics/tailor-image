@@ -5,6 +5,7 @@ import pathlib
 import sys
 
 from typing import Any, List
+from datetime import datetime
 
 import argparse
 import click
@@ -264,7 +265,9 @@ def main():
     parser.add_argument('--publish', action='store_true')
     parser.add_argument('--docker-registry', type=str)
     parser.add_argument('--rosdistro-path', type=pathlib.Path)
-    parser.add_argument('--timestamp', type=str)
+    parser.add_argument(
+        '--timestamp', type=str, default=datetime.now().strftime("%Y%m%d.%H%M%S")
+    )
 
     args = parser.parse_args()
 
