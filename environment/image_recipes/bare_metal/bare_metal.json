@@ -90,7 +90,7 @@
           "chown -R {{ user `username` }}:{{ user `username` }} /home/{{ user `username` }}",
 
           "echo 'Remove unused space on the image'",
-          "dd if=/dev/zero of=/EMPTY bs=1M || true",
+          "dd if=/dev/zero of=/EMPTY bs=1M status=progress || true",
           "rm -f /EMPTY && sync"
       ]
     }
