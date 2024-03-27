@@ -57,7 +57,7 @@ pipeline {
           // (pbovbel) Read configuration from rosdistro. This should probably happen in some kind of Python
           def recipes_config = readYaml(file: recipes_yaml)
           organization = recipes_config['common']['organization']
-          building_flavour = recipes_config['common']['building_flavour']
+          building_flavour = recipes_config['common']['build_flavour']
           distributions = recipes_config['os'].collect {
             os, distribution -> distribution }.flatten()
 
