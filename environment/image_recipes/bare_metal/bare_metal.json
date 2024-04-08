@@ -62,6 +62,7 @@
       "command": "{{user `ansible_command`}}",
       "playbook_file": "{{user `playbook_file`}}",
       "extra_arguments": [
+        "-vvvv",
         "--connection=chroot",
         "{{ user `extra_arguments_ansible` }}",
         "-e ansible_user={{user `username`}}",
