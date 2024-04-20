@@ -47,7 +47,7 @@
     {
       "type": "shell",
       "inline": [
-        "groupadd -r {{user `username`}}",
+        "groupadd {{user `username`}}",
         "useradd -ms /bin/bash -p $(echo \"{{user `password`}}\" | openssl passwd -1 -stdin) -g {{user `username`}} -G sudo {{user `username`}}",
         "echo \"{{user `username`}} ALL=(ALL) NOPASSWD: ALL\" >> /etc/sudoers",
         "mkdir -p /home/{{user `username`}}",
