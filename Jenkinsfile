@@ -11,7 +11,7 @@ def parentImage = { release, docker_registry -> docker_registry - "https://" + '
 def distributions = []
 def images = null
 def organization = null
-def testing_flavour = null
+def build_flavour = null
 
 pipeline {
   agent none
@@ -57,7 +57,7 @@ pipeline {
           // (pbovbel) Read configuration from rosdistro. This should probably happen in some kind of Python
           def recipes_config = readYaml(file: recipes_yaml)
           organization = recipes_config['common']['organization']
-          testing_flavour = recipes_config['common']['testing_flavour']
+          build_flavour = recipes_config['common']['build_flavour']
           distributions = recipes_config['os'].collect {
             os, distribution -> distribution }.flatten()
 
@@ -99,7 +99,7 @@ pipeline {
               "--build-arg APT_REGION=${params.apt_region} " +
               "--build-arg RELEASE_LABEL=${params.release_label} " +
               "--build-arg RELEASE_TRACK=${params.release_track} " +
-              "--build-arg FLAVOUR=${testing_flavour} " +
+              "--build-arg FLAVOUR=${build_flavour} " +
               "--build-arg ORGANIZATION=${organization} " +
               "--build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
               "--build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY " +
@@ -162,7 +162,7 @@ pipeline {
                               --apt-repo ${params.apt_repo - 's3://'} \
                               --release-track ${params.release_track} \
                               --release-label ${params.release_label} \
-                              --flavour ${testing_flavour} \
+                              --flavour ${build_flavour} \
                               --organization ${organization} \
                               --docker-registry ${params.docker_registry} \
                               --rosdistro-path /rosdistro \
