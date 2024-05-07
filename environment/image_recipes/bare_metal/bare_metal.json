@@ -102,6 +102,7 @@
       "inline": [
           "echo 'Resize image'",
           "qemu-nbd -c /dev/nbd0 images/{{user `image_name`}}.qcow2",
+          "while  [ ! -f  '/dev/nbd0p1' ]; echo 'Waiting for nbd to be ready'; sleep 1; done",
           "e2fsck -y -f /dev/nbd0p1",
           "resize2fs /dev/nbd0p1 -M",
           "qemu-nbd -d /dev/nbd0",
