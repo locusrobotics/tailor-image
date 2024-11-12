@@ -1,5 +1,4 @@
 {
-
   "variables": {
     "image_name": "tailor_docker",
 
@@ -31,10 +30,13 @@
       "image": "{{user `os_name`}}:{{user  `os_version`}}",
       "commit": "true",
       "changes": [
-          "USER {{user `username`}}",
-          "LABEL tailor=\"{{user `type`}}_image\"",
-          "ENV BUNDLE_ROOT /opt/{{user `organization`}}/{{user `bundle_version`}}/{{user `bundle_flavour`}}",
-          "ENV LANG en_US.UTF-8"
+        "USER {{user `username`}}",
+        "LABEL tailor=\"{{user `type`}}_image\"",
+        "ENV BUNDLE_ROOT /opt/{{user `organization`}}/{{user `bundle_version`}}/{{user `bundle_flavour`}}",
+        "ENV LANG en_US.UTF-8",
+        "WORKDIR /home/{{user `username`}}",
+        "ENTRYPOINT [\"/bin/entrypoint.sh\"]",
+        "CMD [\"/bin/bash\"]"
       ],
       "run_command": [
         "-d",
@@ -52,14 +54,14 @@
     {
       "type": "shell",
       "environment_vars": [
-          "DEBIAN_FRONTEND=noninteractive",
-          "PYTHONUNBUFFERED=1",
-          "LANG=en_US.UTF-8"
+        "DEBIAN_FRONTEND=noninteractive",
+        "PYTHONUNBUFFERED=1",
+        "LANG=en_US.UTF-8"
       ],
       "inline": [
-          "apt-get update && apt-get install -yq python3 sudo locales ccache gnupg openssl",
-          "apt-get update && apt-get install -y tzdata",
-          "locale-gen en_US.UTF-8"
+        "apt-get update && apt-get install -yq python3 sudo locales ccache gnupg openssl",
+        "apt-get update && apt-get install -y tzdata",
+        "locale-gen en_US.UTF-8"
       ]
     },
 
@@ -103,6 +105,12 @@
         "echo \"yaml file:///etc/ros/rosdep/rosdep.yaml\" > /etc/ros/rosdep/sources.list.d/10-tailor.list",
         "su {{user `username`}} bash -c \"rosdep update\""
       ]
+    },
+
+    {
+      "type": "file",
+      "source": "entrypoint.sh",
+      "destination": "/bin/entrypoint.sh"
     }
   ],
 
