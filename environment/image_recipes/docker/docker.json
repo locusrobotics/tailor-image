@@ -109,7 +109,7 @@
 
     {
       "type": "file",
-      "source": "entrypoint.sh",
+      "source": "{{user `entrypoint_path`}}",
       "destination": "/bin/entrypoint.sh"
     }
   ],
