@@ -109,7 +109,7 @@
 
     {
       "type": "file",
-      "source": "/tailor-image/environment/image_recipes/docker/entrypoint.sh",
+      "source": "{{user `entrypoint_path`}}",
       "destination": "/bin/entrypoint.sh"
     }
   ],
