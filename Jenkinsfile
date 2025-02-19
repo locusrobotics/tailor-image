@@ -82,7 +82,7 @@ pipeline {
           }
 
           stash(name: 'source', includes: 'tailor-image/**')
-          def parent_image_label = parentImage(params.release_label, params.docker_registry)
+          def parent_image_label = parentImage("hotdog", params.docker_registry)
           def parent_image = docker.image(parent_image_label)
           try {
             docker.withRegistry(params.docker_registry, docker_credentials) { parent_image.pull() }
@@ -97,8 +97,8 @@ pipeline {
               "-f tailor-image/environment/Dockerfile --cache-from ${parent_image_label} " +
               "--build-arg APT_REPO=${params.apt_repo} " +
               "--build-arg APT_REGION=${params.apt_region} " +
-              "--build-arg RELEASE_LABEL=${params.release_label} " +
-              "--build-arg RELEASE_TRACK=${params.release_track} " +
+              "--build-arg RELEASE_LABEL=hotdog " +
+              "--build-arg RELEASE_TRACK=hotdog " +
               "--build-arg FLAVOUR=${testing_flavour} " +
               "--build-arg ORGANIZATION=${organization} " +
               "--build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
@@ -145,7 +145,7 @@ pipeline {
                     }
                     unstash(name: 'rosdistro')
 
-                    def parent_image = docker.image(parentImage(params.release_label, params.docker_registry))
+                    def parent_image = docker.image(parentImage("hotdog", params.docker_registry))
                     docker.withRegistry(params.docker_registry, docker_credentials) {
                       parent_image.pull()
                     }
@@ -160,8 +160,8 @@ pipeline {
                               --name ${image} \
                               --distribution ${distribution} \
                               --apt-repo ${params.apt_repo - 's3://'} \
-                              --release-track ${params.release_track} \
-                              --release-label ${params.release_label} \
+                              --release-track hotdog \
+                              --release-label hotdog \
                               --flavour ${testing_flavour} \
                               --organization ${organization} \
                               --docker-registry ${params.docker_registry} \

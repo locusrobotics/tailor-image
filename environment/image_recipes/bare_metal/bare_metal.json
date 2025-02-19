@@ -100,6 +100,10 @@
     {
       "type": "shell-local",
       "inline": [
+          "echo 'Checking nbd status'",
+          "ls -l /dev/nbd0",
+          "sleep 20",
+          "ls -l /dev/nbd*",
           "echo 'Resize image'",
           "qemu-nbd -c /dev/nbd0 images/{{user `image_name`}}.qcow2",
           "e2fsck -y -f /dev/nbd0p1",
