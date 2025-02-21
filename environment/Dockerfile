@@ -27,16 +27,9 @@ SHELL ["/bin/bash", "-c"]
 ENV DEBIAN_FRONTEND noninteractive
 ENV PYTHONUNBUFFERED 1
 
-RUN apt-get update && apt-get install --no-install-recommends -y locales curl gnupg1 gpgv1 sudo
+RUN apt-get update && apt-get install --no-install-recommends -y locales
 RUN locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
-
-RUN apt-get update && apt-get install --no-install-recommends -y \
-  python3-dev \
-  python3-pip \
-  python3-setuptools \
-  python3-wheel \
-  git
 
 # Let's start with some basic stuff.
 RUN apt-get update -qq && apt-get install --no-install-recommends -qqy \
@@ -44,11 +37,20 @@ RUN apt-get update -qq && apt-get install --no-install-recommends -qqy \
     apt-transport-https \
     ca-certificates \
     curl \
+    debootstrap \
     gcc \
+    git \
+    gnupg1 \
+    gpgv1 \
     iptables \
     libguestfs-tools \
     lxc \
     openssh-client \
+    python3-dev \
+    python3-pip \
+    python3-setuptools \
+    python3-wheel \
+    sudo \
     unzip \
     wget \
     xz-utils
@@ -77,10 +79,10 @@ RUN usermod -aG docker tailor
 RUN echo "tailor ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers
 
 # Add package mirror
-# TODO(pbovbel) read this from configuration
 RUN apt-get update && apt-get install --no-install-recommends -y apt-transport-https apt-transport-s3 && \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 142D5F1683E1528B
 
+# TODO(pbovbel) read this from configuration
 RUN echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_LABEL}/ubuntu noble main" >> /etc/apt/sources.list && \
     echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_LABEL}/ubuntu noble-mirror main" >> /etc/apt/sources.list
 
