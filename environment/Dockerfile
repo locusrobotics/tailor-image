@@ -25,7 +25,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 SHELL ["/bin/bash", "-c"]
 
-RUN apt-get update && apt-get install --no-install-recommends -y \
+RUN sed -i 's/archive.ubuntu.com/us-east-1.ec2.&/g' /etc/apt/sources.list && \
+    apt-get update && apt-get install --no-install-recommends -y \
     locales \
     curl \
     gnupg1 \
