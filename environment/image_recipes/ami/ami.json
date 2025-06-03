@@ -78,7 +78,10 @@
       "inline": [
           "sudo apt-add-repository multiverse",
           "sudo apt-get update",
-          "sudo apt-get install -yq python3 ec2-ami-tools awscli",
+          "sudo apt-get install -yq python3 ec2-ami-tools",
+          "curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip",
+          "unzip awscliv2.zip",
+          "sudo ./aws/install",
           "sudo aws configure set s3.signature_version s3v4",
           "sudo sed -i 's/preserve_hostname: false/preserve_hostname: true/g' /etc/cloud/cloud.cfg",
           "echo \"{{user `username`}} ALL=(ALL) NOPASSWD: ALL\" | sudo tee -a /etc/sudoers",
