@@ -63,6 +63,7 @@
       "playbook_file": "{{user `playbook_file`}}",
       "extra_arguments": [
         "--connection=chroot",
+        "--vault-password-file=/home/tailor/.vault_pass.txt",
         "{{ user `extra_arguments_ansible` }}",
         "-e ansible_user={{user `username`}}",
         "-e organization={{user `organization`}}",
