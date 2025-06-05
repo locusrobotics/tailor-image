@@ -10,6 +10,7 @@ ENV AWS_SECRET_ACCESS_KEY ${AWS_SECRET_ACCESS_KEY}
 
 ARG AWS_DEFAULT_REGION=us-east-1
 
+
 ARG GITHUB_TOKEN
 ENV GITHUB_TOKEN ${GITHUB_TOKEN}
 
@@ -27,6 +28,7 @@ SHELL ["/bin/bash", "-c"]
 ENV DEBIAN_FRONTEND noninteractive
 ENV PYTHONUNBUFFERED 1
 
+RUN sed -i 's/archive.ubuntu.com/us-east-1.ec2.&/g' /etc/apt/sources.list
 RUN apt-get update && apt-get install --no-install-recommends -y locales curl gnupg1 gpgv1 sudo
 RUN locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
