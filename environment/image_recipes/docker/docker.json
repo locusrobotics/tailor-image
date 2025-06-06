@@ -68,11 +68,26 @@
     {
       "type": "shell",
       "inline": [
-        "groupadd {{user `username`}}",
-        "useradd -ms /bin/bash -p $(echo \"{{user `password`}}\" | openssl passwd -1 -stdin) -g {{user `username`}} -G sudo {{user `username`}}",
-        "echo \"{{user `username`}} ALL=(ALL) NOPASSWD: ALL\" >> /etc/sudoers",
-        "mkdir -p /home/{{user `username`}}",
-        "usermod -d /home/{{user `username`}} {{user `username`}}"
+        "UBUNTU_CODENAME=$(cat /etc/os-release | grep UBUNTU_CODENAME | awk -F'=' '{print $2}')",
+
+        "# Default noble image already has an ubuntu user, rename it if exists",
+        "if [ \"$UBUNTU_CODENAME\" = \"noble\" ]; then",
+        "  if id ubuntu >/dev/null 2>&1; then",
+        "    echo \"Renaming default 'ubuntu' user to '{{ user `username` }}'\"",
+        "    usermod -l {{ user `username` }} ubuntu",
+        "    groupmod -n {{ user `username` }} ubuntu",
+        "  else",
+        "    echo \"Creating new '{{ user `username` }}' user and group\"",
+        "    useradd -m -d /home/{{ user `username` }} {{user `username`}}",
+        "  fi;",
+        "else",
+        "  echo \"Creating new '{{ user `username` }}' user and group\"",
+        "  useradd -m -d /home/{{ user `username` }} {{user `username`}}",
+        "fi",
+
+        "# Modify user with the desired password, add it to sudo group and add it to sudoers list",
+        "usermod -m -s /bin/bash -p $(echo \"{{user `password`}}\" | openssl passwd -1 -stdin) -d /home/{{ user `username` }} -G sudo {{user `username`}}",
+        "echo \"{{user `username`}} ALL=(ALL) NOPASSWD: ALL\" >> /etc/sudoers"
       ]
     },
 
@@ -120,7 +135,7 @@
       {
         "type": "docker-tag",
         "repository": "{{user `ecr_server`}}/{{user `ecr_repository`}}",
-        "tag": "{{user `image_name`}}"
+        "tags": ["{{user `image_name`}}"]
       },
       {
         "name": "publish",
