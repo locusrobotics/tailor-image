@@ -63,12 +63,14 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     provision_file_path = find_package(package, 'playbooks/' + provision_file, env)
 
     optional_vars = []
+    optional_build_args = []
     optional_var_names = ['username', 'password', 'extra_arguments_ansible',
                           'ansible_command', 'description', 'disk_size', 'group']
 
     for var in optional_var_names:
         if var in recipe[name]:
             optional_vars.extend(['-var', f'{var}={recipe[name][var]}'])
+            optional_build_args.extend(['--build-arg', f'{var}={recipe[name][var]}'])
 
     if build_type == 'docker':
         image_name = f'tailor-image-{name}-{distribution}-{release_label}'
@@ -76,23 +78,42 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         entrypoint_path = f'/tailor-image/environment/image_recipes/docker/entrypoint.sh'
         ecr_server = docker_registry_data[0]
         ecr_repository = docker_registry_data[1]
-        extra_vars = [
-            '-var', f'type={build_type}',
-            '-var', f'bundle_flavour={flavour}',
-            '-var', f'image_name={image_name}',
-            '-var', f'ecr_server={ecr_server}',
-            '-var', f'os_version={distribution}',
-            '-var', f'ecr_repository={ecr_repository}',
-            '-var', f'aws_access_key={os.environ["AWS_ACCESS_KEY_ID"]}',
-            '-var', f'aws_secret_key={os.environ["AWS_SECRET_ACCESS_KEY"]}',
-            '-var', f'entrypoint_path={entrypoint_path}'
+        image_tag = f'{ecr_server}/{ecr_repository}:{image_name}'
+        dockerfile_path=f'/tailor-image/environment/image_recipes/{build_type}/Dockerfile'
+        bundle_folder=f'{os.environ["BUNDLE_ROOT"]}/{distro}'
+        build_args = [
+            '--build-arg', f'TYPE={build_type}',
+            '--build-arg', f'BUNDLE_FLAVOUR={flavour}',
+            '--build-arg', f'IMAGE_NAME={image_name}',
+            '--build-arg', f'ECR_SERVER={ecr_server}',
+            '--build-arg', f'OS_VERSION={distribution}',
+            '--build-arg', f'ECR_REPOSITORY={ecr_repository}',
+            '--build-arg', f'ENTRYPOINT_PATH={entrypoint_path}',
+            '--build-arg', f'PLAYBOOK_FILE={provision_file_path}',
+            '--build-arg', f'BUNDLE_FOLDER={bundle_folder}',
+            '--build-arg', f'ORGANIZATION={organization}',
+            '--build-arg', f'BUNDLE_TRACK={release_track}',
+            '--build-arg', f'BUNDLE_VERSION={release_label}',
+            '--build-arg', f'ANSIBLE_CONFIG={env.get("ANSIBLE_CONFIG", "")}'
         ]
 
-        if not publish:
-            extra_vars += ['-except', 'publish']
+        if publish:
+            extra_vars += ['--publish']
+
+        click.echo(f'Building {build_type} image with: {provision_file}', err=True)
 
         # Make sure we remove old containers before creting new ones
         run_command(['docker', 'rm', '-f', 'default'], check=False)
+        cmd = (
+            ['docker', 'build', '--target', 'runtime']
+            + build_args
+            + optional_build_args
+            + ['-f', dockerfile_path, '-t', image_tag]
+            + ['.']
+        )
+        run_command(cmd)
+        click.echo(f'Image {build_type} finished building', err=True)
+        return 0
 
     elif build_type in ['bare_metal', 'lxd'] and publish:
         # Get information about base image
