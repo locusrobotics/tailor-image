@@ -88,7 +88,6 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
             '--build-arg', f'ECR_SERVER={ecr_server}',
             '--build-arg', f'OS_VERSION={distribution}',
             '--build-arg', f'ECR_REPOSITORY={ecr_repository}',
-            '--build-arg', f'ENTRYPOINT_PATH={entrypoint_path}',
             '--build-arg', f'PLAYBOOK_FILE={provision_file_path}',
             '--build-arg', f'BUNDLE_FOLDER={bundle_folder}',
             '--build-arg', f'ORGANIZATION={organization}',
@@ -101,6 +100,14 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
             extra_vars += ['--publish']
 
         click.echo(f'Building {build_type} image with: {provision_file}', err=True)
+        click.echo(f'Preparing build context...', err=True)
+        run_command(['mkdir', '-p', 'build-context/share'])
+        run_command(['cp', '-r', os.path.join(bundle_folder, 'lib'), 'build-context/lib'])
+        run_command(['cp', '-r', os.path.join(bundle_folder, 'bin'), 'build-context/bin'])
+        run_command(['cp', '-r', os.path.join(bundle_folder, 'share/locus_ansible'), 'build-context/share/locus_ansible'])
+        run_command(['cp', entrypoint_path, 'build-context/entrypoint.sh'])
+        run_command(['cp', '/rosdistro/rosdep/rosdep.yaml', 'build-context/rosdep.yaml'])
+        run_command(['cp', '/home/tailor/.vault_pass.txt', 'build-context/.vault_pass.txt'])
 
         # Make sure we remove old containers before creting new ones
         run_command(['docker', 'rm', '-f', 'default'], check=False)
@@ -109,7 +116,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
             + build_args
             + optional_build_args
             + ['-f', dockerfile_path, '-t', image_tag]
-            + ['.']
+            + ['build-context']
         )
         run_command(cmd)
         click.echo(f'Image {build_type} finished building', err=True)

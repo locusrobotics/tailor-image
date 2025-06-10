@@ -8,7 +8,6 @@ ARG BUNDLE_FLAVOUR
 ARG IMAGE_NAME
 ARG ECR_SERVER
 ARG ECR_REPOSITORY
-ARG ENTRYPOINT_PATH
 ARG PLAYBOOK_FILE
 ARG BUNDLE_FOLDER
 ARG ORGANIZATION
@@ -58,10 +57,10 @@ RUN groupadd -r "${username}" && \
 
 FROM base AS bundle
 
-COPY ${BUNDLE_FOLDER}/bin ${BUNDLE_FOLDER}/bin
-COPY ${BUNDLE_FOLDER}/share/locus_ansible ${BUNDLE_FOLDER}/share/locus_ansible
-COPY ${BUNDLE_FOLDER}/lib ${BUNDLE_FOLDER}/lib
-COPY /home/tailor/.vault_pass.txt /root/.vault_pass.txt
+COPY bin ${BUNDLE_FOLDER}/bin
+COPY share/locus_ansible ${BUNDLE_FOLDER}/share/locus_ansible
+COPY lib ${BUNDLE_FOLDER}/lib
+COPY .vault_pass.txt /root/.vault_pass.txt
 
 RUN cat > /tmp/default.inv <<'EOF'
 [default]
@@ -82,11 +81,11 @@ RUN bash -c "source ${BUNDLE_FOLDER}/share/locus_ansible/package.bash && \
 
 FROM bundle AS runtime
 
-COPY rosdistro/rosdep/rosdep.yaml /etc/ros/rosdep/rosdep.yaml
+COPY rosdep.yaml /etc/ros/rosdep/rosdep.yaml
 RUN echo "yaml file:///etc/ros/rosdep/rosdep.yaml" > /etc/ros/rosdep/sources.list.d/10-tailor.list && \
     rosdep update
 
-COPY ${ENTRYPOINT_PATH} /bin/entrypoint.sh
+COPY entrypoint.sh /bin/entrypoint.sh
 
 USER ${username}
 WORKDIR /home/${username}
