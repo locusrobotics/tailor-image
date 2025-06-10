@@ -33,7 +33,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     ANSIBLE_CONFIG=${ANSIBLE_CONFIG}
 
 # Install basics
-RUN apt-get update && apt-get install -yq \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     python3 \
     sudo \
     locales \
@@ -59,7 +60,7 @@ FROM base AS bundle
 
 COPY bin ${BUNDLE_FOLDER}/bin
 COPY share/locus_ansible ${BUNDLE_FOLDER}/share/locus_ansible
-COPY lib ${BUNDLE_FOLDER}/lib
+COPY librospack.so ${BUNDLE_FOLDER}/lib/librospack.so
 COPY .vault_pass.txt /root/.vault_pass.txt
 
 RUN cat > /tmp/default.inv <<'EOF'
@@ -83,7 +84,8 @@ FROM bundle AS runtime
 
 COPY rosdep.yaml /etc/ros/rosdep/rosdep.yaml
 RUN echo "yaml file:///etc/ros/rosdep/rosdep.yaml" > /etc/ros/rosdep/sources.list.d/10-tailor.list && \
-    rosdep update
+    rosdep update && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY entrypoint.sh /bin/entrypoint.sh
 
