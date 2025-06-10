@@ -98,7 +98,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
 
         click.echo(f'Building {build_type} image with: {provision_file}', err=True)
         click.echo(f'Preparing build context...', err=True)
-        run_command(['rm', '-r', 'build-context'])
+        run_command(['rm', '-rf', 'build-context'])
         run_command(['mkdir', '-p', 'build-context/share'])
         run_command(['cp', '-r', os.path.join(bundle_folder, 'lib/librospack.so'), 'build-context/librospack.so'])
         run_command(['cp', '-r', os.path.join(bundle_folder, 'bin'), 'build-context/bin'])
