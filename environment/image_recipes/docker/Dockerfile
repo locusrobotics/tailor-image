@@ -59,7 +59,6 @@ RUN groupadd -r "${username}" && \
 FROM base AS bundle
 
 COPY librospack.so ${BUNDLE_FOLDER}/lib/librospack.so
-COPY .vault_pass.txt /root/.vault_pass.txt
 
 RUN cat > /tmp/default.inv <<'EOF'
 [default]
