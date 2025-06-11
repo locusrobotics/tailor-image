@@ -42,6 +42,7 @@ RUN apt-get update && \
     gnupg \
     openssl \
     libboost-all-dev \
+    tzdata \
     libtinyxml2-9 && \
     locale-gen en_US.UTF-8 && \
     rm -rf /var/lib/apt/lists/*
