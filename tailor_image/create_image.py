@@ -98,7 +98,6 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
 
         click.echo(f'Building {build_type} image with: {provision_file}', err=True)
         click.echo(f'Preparing build context...', err=True)
-        run_command(['rm', '-rf', 'build-context'])
         run_command(['mkdir', '-p', 'build-context/share'])
         run_command(['cp', '-r', os.path.join(bundle_folder, 'lib/librospack.so'), 'build-context/librospack.so'])
         run_command(['cp', '-r', os.path.join(bundle_folder, 'bin'), 'build-context/bin'])
@@ -119,13 +118,14 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         run_command(docker_build_cmd)
         if publish:
             click.echo(f'Docker login...', err=True)
-            run_command(
-                f"aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin {ecr_server}",
-                shell=True
-            )   
+            login_command = f"aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin {ecr_server}"
+            run_command([login_command], shell=True)
             click.echo(f'Push docker image', err=True)
             run_command(['docker', 'push', image_tag])
+            logout_cmd = f"docker logout {ecr_server}"
+            run_command([logout_cmd], shell=True)
 
+        run_command(['rm', '-rf', 'build-context'])
         click.echo(f'Image {build_type} finished building', err=True)
         return 0
 
