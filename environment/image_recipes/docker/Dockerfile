@@ -41,9 +41,8 @@ RUN apt-get update && \
     ccache \
     gnupg \
     openssl \
-    libtinyxml2-9 \  
     libboost-all-dev \
-    tzdata && \
+    libtinyxml2-9 && \
     locale-gen en_US.UTF-8 && \
     rm -rf /var/lib/apt/lists/*
 
@@ -58,8 +57,6 @@ RUN groupadd -r "${username}" && \
 
 FROM base AS bundle
 
-COPY bin ${BUNDLE_FOLDER}/bin
-COPY share/locus_ansible ${BUNDLE_FOLDER}/share/locus_ansible
 COPY librospack.so ${BUNDLE_FOLDER}/lib/librospack.so
 COPY .vault_pass.txt /root/.vault_pass.txt
 
@@ -68,7 +65,12 @@ RUN cat > /tmp/default.inv <<'EOF'
 default ansible_host=localhost ansible_connection=local
 EOF
 
-RUN bash -c "source ${BUNDLE_FOLDER}/share/locus_ansible/package.bash && \
+RUN --mount=type=bind,source=bin,target=/tmp/bin,ro \
+    --mount=type=bind,source=share/locus_ansible,target=/tmp/share/locus_ansible,ro \
+    bash -c "mkdir -p ${BUNDLE_FOLDER}/bin ${BUNDLE_FOLDER}/share && \
+    cp -a /tmp/bin/. ${BUNDLE_FOLDER}/bin/ && \
+    cp -a /tmp/share/locus_ansible ${BUNDLE_FOLDER}/share/locus_ansible && \
+    source ${BUNDLE_FOLDER}/share/locus_ansible/package.bash && \
     cd ${BUNDLE_FOLDER}/share/locus_ansible && \
     ${ansible_command} ${PLAYBOOK_FILE} \
     -i /tmp/default.inv \
@@ -81,11 +83,6 @@ RUN bash -c "source ${BUNDLE_FOLDER}/share/locus_ansible/package.bash && \
     -e ansible_host=default"
 
 FROM bundle AS runtime
-
-COPY rosdep.yaml /etc/ros/rosdep/rosdep.yaml
-RUN echo "yaml file:///etc/ros/rosdep/rosdep.yaml" > /etc/ros/rosdep/sources.list.d/10-tailor.list && \
-    rosdep update && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY entrypoint.sh /bin/entrypoint.sh
 
