@@ -59,6 +59,7 @@ RUN groupadd -r "${username}" && \
 FROM base AS bundle
 
 COPY librospack.so ${BUNDLE_FOLDER}/lib/librospack.so
+COPY .vault_pass.txt /root/.vault_pass.txt
 
 RUN cat > /tmp/default.inv <<'EOF'
 [default]
@@ -80,7 +81,8 @@ RUN --mount=type=bind,source=bin,target=/tmp/bin,ro \
     -e bundle_track=${BUNDLE_TRACK} \
     -e bundle_version=${BUNDLE_VERSION} \
     -e bundle_flavour=${BUNDLE_FLAVOUR} \
-    -e ansible_host=default"
+    -e ansible_host=default \
+    --vault-password-file=/root/.vault_pass.txt"
 
 FROM bundle AS runtime
 
