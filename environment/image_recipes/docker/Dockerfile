@@ -52,7 +52,7 @@ RUN groupadd -r "${username}" && \
     useradd -ms /bin/bash \
     -p "$(echo "${password}" | openssl passwd -1 -stdin)" \
     -g "$username" -G sudo "$username" && \
-    echo "${username} ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers && \
+    echo "${username} ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
     mkdir -p /home/"${username}" && \
     usermod -d /home/"${username}" "${username}"
 
