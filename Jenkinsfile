@@ -176,8 +176,14 @@ pipeline {
                   }
                 } finally {
                   library("tailor-meta@${params.tailor_meta}")
+                  try {
+                    if (fileExists(".")) {
+                    deleteDir()
+                    }
+                  } catch (e) {
+                    println e
+                  }
                   cleanDocker()
-                  deleteDir()
                 }
               }}]
             }
