@@ -90,6 +90,7 @@
         "-e bundle_track={{user `bundle_track`}}",
         "-e bundle_version={{user `bundle_version`}}",
         "-e bundle_flavour={{user `bundle_flavour`}}",
+        "-e os_version={{user `os_version`}}",
         "-e ansible_host=default"
       ]
     },
