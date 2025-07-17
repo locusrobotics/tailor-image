@@ -1,4 +1,4 @@
-FROM ubuntu:jammy
+FROM ubuntu:noble
 
 LABEL tailor="environment"
 
@@ -29,16 +29,9 @@ ENV DEBIAN_FRONTEND noninteractive
 ENV PYTHONUNBUFFERED 1
 
 RUN sed -i 's/archive.ubuntu.com/us-east-1.ec2.&/g' /etc/apt/sources.list
-RUN apt-get update && apt-get install --no-install-recommends -y locales curl gnupg1 gpgv1 sudo
+RUN apt-get update && apt-get install --no-install-recommends -y locales
 RUN locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
-
-RUN apt-get update && apt-get install --no-install-recommends -y \
-  python3-dev \
-  python3-pip \
-  python3-setuptools \
-  python3-wheel \
-  git
 
 # Let's start with some basic stuff.
 RUN apt-get update -qq && apt-get install --no-install-recommends -qqy \
@@ -46,17 +39,26 @@ RUN apt-get update -qq && apt-get install --no-install-recommends -qqy \
     apt-transport-https \
     ca-certificates \
     curl \
+    debootstrap \
     gcc \
+    git \
+    gnupg1 \
+    gpgv1 \
     iptables \
     libguestfs-tools \
     lxc \
     openssh-client \
+    python3-dev \
+    python3-pip \
+    python3-setuptools \
+    python3-wheel \
+    sudo \
     unzip \
     wget \
     xz-utils
 
 # Install Docker from Docker Inc. repositories.
-RUN curl -sSL https://get.docker.com/ | VERSION=24.0.6 sh
+RUN curl -sSL https://get.docker.com/ | VERSION=28.0.0 sh
 
 # Install packer
 RUN curl -sSL https://releases.hashicorp.com/packer/1.9.1/packer_1.9.1_linux_amd64.zip > packer.zip && \
@@ -67,23 +69,24 @@ RUN curl -sSlL https://github.com/locusrobotics/packer-builder-qemu-chroot/relea
     rm packer_qemu_chroot.tar.gz
 
 COPY tailor-image tailor-image
-RUN pip3 install -e tailor-image
+RUN pip3 install --break-system-packages -e tailor-image
 
 COPY rosdistro/rosdep/rosdep.yaml /root/rosdep.yaml
 COPY rosdistro /rosdistro
 
 # Create non-root user
-RUN groupadd -r tailor && useradd -ms /bin/bash -g tailor -G sudo tailor
+RUN usermod -md /home/tailor -s /bin/bash -l tailor ubuntu
+RUN groupmod -n tailor ubuntu
 RUN usermod -aG docker tailor
 RUN echo "tailor ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers
 
 # Add package mirror
-# TODO(pbovbel) read this from configuration
 RUN apt-get update && apt-get install --no-install-recommends -y apt-transport-https apt-transport-s3 && \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 142D5F1683E1528B
 
-RUN echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_LABEL}/ubuntu jammy main" >> /etc/apt/sources.list && \
-    echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_LABEL}/ubuntu jammy-mirror main" >> /etc/apt/sources.list
+# TODO(pbovbel) read this from configuration
+RUN echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_LABEL}/ubuntu noble main" >> /etc/apt/sources.list && \
+    echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_LABEL}/ubuntu noble-mirror main" >> /etc/apt/sources.list
 
 # Create auth config file for accesing s3 via apt
 RUN echo "AccessKeyId = $AWS_ACCESS_KEY_ID" | tee /etc/apt/s3auth.conf && \
@@ -95,7 +98,7 @@ RUN apt-get update && \
     RTI_NC_LICENSE_ACCEPTED=yes apt-get install --no-install-recommends -qy\
     ${ORGANIZATION}-${FLAVOUR}-${RELEASE_LABEL}
 
-RUN pip3 install -U catkin_tools
+RUN pip3 install --break-system-packages -U catkin_tools
 
 USER tailor
 

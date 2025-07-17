@@ -38,21 +38,36 @@
     {
       "type": "shell",
       "inline": [
-          "mv /etc/resolv.conf /etc/resolv.conf.old",
-          "echo \"nameserver 1.1.1.1\" > /etc/resolv.conf",
-          "echo \"unnamedrobot\" > /etc/hostname",
-          "apt-get update && apt-get install -yq python3 sudo openssl openssh-server"
+        "mv /etc/resolv.conf /etc/resolv.conf.old",
+        "echo \"nameserver 1.1.1.1\" > /etc/resolv.conf",
+        "echo \"unnamedrobot\" > /etc/hostname",
+        "apt-get update && apt-get install -yq python3 sudo openssl openssh-server"
       ]
     },
 
     {
       "type": "shell",
       "inline": [
-        "groupadd {{user `username`}}",
-        "useradd -ms /bin/bash -p $(echo \"{{user `password`}}\" | openssl passwd -1 -stdin) -g {{user `username`}} -G sudo {{user `username`}}",
-        "echo \"{{user `username`}} ALL=(ALL) NOPASSWD: ALL\" >> /etc/sudoers",
-        "mkdir -p /home/{{user `username`}}",
-        "usermod -d /home/{{user `username`}} {{user `username`}}"
+        "UBUNTU_CODENAME=$(cat /etc/os-release | grep UBUNTU_CODENAME | awk -F'=' '{print $2}')",
+
+        "# Default noble image already has an ubuntu user, rename it if exists",
+        "if [ \"$UBUNTU_CODENAME\" = \"noble\" ]; then",
+        "  if id ubuntu >/dev/null 2>&1; then",
+        "    echo \"Renaming default 'ubuntu' user to '{{ user `username` }}'\"",
+        "    usermod -l {{ user `username` }} ubuntu",
+        "    groupmod -n {{ user `username` }} ubuntu",
+        "  else",
+        "    echo \"Creating new '{{ user `username` }}' user and group\"",
+        "    useradd -m -d /home/{{ user `username` }} {{user `username`}}",
+        "  fi;",
+        "else",
+        "  echo \"Creating new '{{ user `username` }}' user and group\"",
+        "  useradd -m -d /home/{{ user `username` }} {{user `username`}}",
+        "fi",
+
+        "# Modify user with the desired password, add it to sudo group and add it to sudoers list",
+        "usermod -m -s /bin/bash -p $(echo \"{{user `password`}}\" | openssl passwd -1 -stdin) -d /home/{{ user `username` }} -G sudo {{user `username`}}",
+        "echo \"{{user `username`}} ALL=(ALL) NOPASSWD: ALL\" >> /etc/sudoers"
       ]
     },
 
@@ -77,22 +92,22 @@
     {
       "type": "shell",
       "inline": [
-          "echo 'Reconfigure openssh server and restore resolv.conf'",
-          "dpkg-reconfigure openssh-server",
-          "mv /etc/resolv.conf.old /etc/resolv.conf",
+        "echo 'Reconfigure openssh server and restore resolv.conf'",
+        "dpkg-reconfigure openssh-server",
+        "mv /etc/resolv.conf.old /etc/resolv.conf",
 
-          "echo 'Remove machine-id to ensure we get a unique one for each machine'",
-          "rm -f /etc/machine-id /var/lib/dbus/machine-id",
+        "echo 'Remove machine-id to ensure we get a unique one for each machine'",
+        "rm -f /etc/machine-id /var/lib/dbus/machine-id",
 
-          "echo 'Add image version file to image'",
-          "echo '{\"active_version\": \"{{ user `image_name` }}\"}' | tee -a /home/{{ user `username` }}/.ota.json",
+        "echo 'Add image version file to image'",
+        "echo '{\"active_version\": \"{{ user `image_name` }}\"}' | tee -a /home/{{ user `username` }}/.ota.json",
 
-          "echo 'Fix permissions in the home directory'",
-          "chown -R {{ user `username` }}:{{ user `username` }} /home/{{ user `username` }}",
+        "echo 'Fix permissions in the home directory'",
+        "chown -R {{ user `username` }}:{{ user `username` }} /home/{{ user `username` }}",
 
-          "echo 'Remove unused space on the image'",
-          "dd if=/dev/zero of=/EMPTY bs=1M || true",
-          "rm -f /EMPTY && sync"
+        "echo 'Remove unused space on the image'",
+        "dd if=/dev/zero of=/EMPTY bs=1M || true",
+        "rm -f /EMPTY && sync"
       ]
     }
   ],
@@ -101,28 +116,28 @@
     {
       "type": "shell-local",
       "inline": [
-          "echo 'Resize image'",
-          "qemu-nbd -c /dev/nbd0 images/{{user `image_name`}}.qcow2",
-          "e2fsck -y -f /dev/nbd0p1",
-          "resize2fs /dev/nbd0p1 -M",
-          "qemu-nbd -d /dev/nbd0",
-          "qemu-img resize --shrink images/{{user `image_name`}}.qcow2 {{user `disk_size`}}G",
+        "echo 'Resize image'",
+        "qemu-nbd -c /dev/nbd0 images/{{user `image_name`}}.qcow2",
+        "e2fsck -y -f /dev/nbd0p1",
+        "resize2fs /dev/nbd0p1 -M",
+        "qemu-nbd -d /dev/nbd0",
+        "qemu-img resize --shrink images/{{user `image_name`}}.qcow2 {{user `disk_size`}}G",
 
-          "echo 'Converting image to RAW...'",
-          "qemu-img convert images/{{user `image_name`}}.qcow2 images/{{user `image_name`}}.raw",
-          "rm -f images/{{user `image_name`}}.qcow2",
+        "echo 'Converting image to RAW...'",
+        "qemu-img convert images/{{user `image_name`}}.qcow2 images/{{user `image_name`}}.raw",
+        "rm -f images/{{user `image_name`}}.qcow2",
 
-          "echo 'Compressing generated image...'",
-          "xz -k images/{{user `image_name`}}.raw -c --verbose --threads=0 > images/{{user `image_name`}}.raw.xz",
-          "rm -f images/{{user `image_name`}}.raw",
+        "echo 'Compressing generated image...'",
+        "xz -k images/{{user `image_name`}}.raw -c --verbose --threads=0 > images/{{user `image_name`}}.raw.xz",
+        "rm -f images/{{user `image_name`}}.raw",
 
-          "echo 'Uploading compressed image to S3...'",
-          "aws s3 cp images/{{user `image_name`}}.raw.xz s3://{{user `s3_bucket`}}/{{user `bundle_version`}}/images/",
-          "md5sum images/{{user `image_name`}}.raw.xz > /tmp/{{user `image_name`}}",
-          "rm -f images/{{user `image_name`}}.raw.xz",
+        "echo 'Uploading compressed image to S3...'",
+        "aws s3 cp images/{{user `image_name`}}.raw.xz s3://{{user `s3_bucket`}}/{{user `bundle_version`}}/images/",
+        "md5sum images/{{user `image_name`}}.raw.xz > /tmp/{{user `image_name`}}",
+        "rm -f images/{{user `image_name`}}.raw.xz",
 
-          "echo 'Removing generated images...'",
-          "rm -rf images"
+        "echo 'Removing generated images...'",
+        "rm -rf images"
       ]
     }
   ]
