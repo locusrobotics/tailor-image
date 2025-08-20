@@ -105,7 +105,8 @@ pipeline {
                   "--build-arg ORGANIZATION=${organization} " +
                   "--build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
                   "--build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY " +
-                  "--build-arg ANSIBLE_VAULT_PASS=$ANSIBLE_VAULT_PASS .")
+                  "--build-arg ANSIBLE_VAULT_PASS=$ANSIBLE_VAULT_PASS " +
+                  "--build-arg BUILDKIT_INLINE_CACHE=1 .")
               }
             }
 
