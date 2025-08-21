@@ -33,6 +33,8 @@ RUN apt-get update && apt-get install --no-install-recommends -y locales
 RUN locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
 
+ARG APT_REFRESH_KEY
+
 # Let's start with some basic stuff.
 RUN echo "APT refresh key=${APT_REFRESH_KEY}"
 RUN apt-get update -qq && apt-get install --no-install-recommends -qqy \
