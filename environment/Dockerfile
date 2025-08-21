@@ -34,6 +34,7 @@ RUN locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
 
 # Let's start with some basic stuff.
+RUN echo "APT refresh key=${APT_REFRESH_KEY}"
 RUN apt-get update -qq && apt-get install --no-install-recommends -qqy \
     ansible \
     apt-transport-https \
