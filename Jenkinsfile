@@ -109,7 +109,7 @@ pipeline {
           }
 
           parent_image.inside() {
-            sh('pip3 install -e tailor-image')
+            sh('pip3 install --break-system-packages -e tailor-image')
           }
           docker.withRegistry(params.docker_registry, docker_credentials) {
             parent_image.push()
@@ -138,6 +138,12 @@ pipeline {
               tmp_distributions = config['os_versions'].findAll { it in distributions }
             }
 
+            // If `bundle_flavour` not defined, default to testing_flavour
+            def bundle_flavour = testing_flavour
+            if (config.containsKey('bundle_flavour')) {
+              bundle_flavour = config['bundle_flavour']
+            }
+
             jobs << tmp_distributions.collectEntries { distribution ->
               ["${image}-${distribution}", { node {
                 try {
@@ -164,7 +170,7 @@ pipeline {
                               --apt-repo ${params.apt_repo - 's3://'} \
                               --release-track ${params.release_track} \
                               --release-label ${params.release_label} \
-                              --flavour ${testing_flavour} \
+                              --flavour ${bundle_flavour} \
                               --organization ${organization} \
                               --docker-registry ${params.docker_registry} \
                               --rosdistro-path /rosdistro \

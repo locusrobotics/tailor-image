@@ -1,4 +1,4 @@
-FROM ubuntu:jammy
+FROM ubuntu:noble
 
 LABEL tailor="environment"
 
@@ -40,11 +40,20 @@ RUN sed -i 's/archive.ubuntu.com/us-east-1.ec2.&/g' /etc/apt/sources.list && \
     ansible \
     apt-transport-https \
     ca-certificates \
+    debootstrap \
     gcc \
+    git \
+    gnupg1 \
+    gpgv1 \
     iptables \
     libguestfs-tools \
     lxc \
     openssh-client \
+    python3-dev \
+    python3-pip \
+    python3-setuptools \
+    python3-wheel \
+    sudo \
     unzip \
     wget \
     xz-utils && \
@@ -52,7 +61,7 @@ RUN sed -i 's/archive.ubuntu.com/us-east-1.ec2.&/g' /etc/apt/sources.list && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Docker from Docker Inc. repositories.
-RUN curl -sSL https://get.docker.com/ | VERSION=24.0.6 sh
+RUN curl -sSL https://get.docker.com/ | VERSION=28.0.0 sh
 
 # Install packer
 RUN curl -sSL https://releases.hashicorp.com/packer/1.9.1/packer_1.9.1_linux_amd64.zip > packer.zip && \
@@ -66,14 +75,13 @@ COPY rosdistro/rosdep/rosdep.yaml /root/rosdep.yaml
 COPY rosdistro /rosdistro
 
 COPY tailor-image tailor-image
-RUN pip3 install -e tailor-image
+RUN pip3 install --break-system-packages -e tailor-image
 
 # Add package mirror
-# TODO(pbovbel) read this from configuration
 RUN apt-get update && apt-get install --no-install-recommends -y apt-transport-https apt-transport-s3 && \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 142D5F1683E1528B && \
-    echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_LABEL}/ubuntu jammy main" >> /etc/apt/sources.list && \
-    echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_LABEL}/ubuntu jammy-mirror main" >> /etc/apt/sources.list
+    echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_LABEL}/ubuntu noble main" >> /etc/apt/sources.list && \
+    echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_LABEL}/ubuntu noble-mirror main" >> /etc/apt/sources.list
 
 # Create auth config file for accesing s3 via apt
 RUN echo "AccessKeyId = $AWS_ACCESS_KEY_ID" | tee /etc/apt/s3auth.conf && \
@@ -86,13 +94,14 @@ RUN apt-get update && \
     ${ORGANIZATION}-${FLAVOUR}-${RELEASE_LABEL}  && \
     rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install -U catkin_tools
+RUN pip3 install --break-system-packages -U catkin_tools
 
 # Create non-root user
 ARG USER_NAME=tailor
-RUN groupadd -r "$USER_NAME" && useradd -ms /bin/bash -g "$USER_NAME" -G sudo "$USER_NAME" && \
+RUN usermod -md "/home/$USER_NAME" -s /bin/bash -l $USER_NAME ubuntu && \
+    groupmod -n $USER_NAME ubuntu && \
     usermod -aG docker "$USER_NAME" && \
-    echo "${USER_NAME} ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers
+    echo "$USER_NAME ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers
 
 USER ${USER_NAME}
 WORKDIR /home/${USER_NAME}
