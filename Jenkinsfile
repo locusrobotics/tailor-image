@@ -29,6 +29,8 @@ pipeline {
     string(name: 'apt_repo')
     string(name: 'apt_region', defaultValue: 'us-east-1')
     booleanParam(name: 'deploy', defaultValue: false)
+    booleanParam(name: 'invalidate_cache', defaultValue: false)
+    string(name: 'apt_refresh_key')
   }
 
   options {
@@ -84,35 +86,40 @@ pipeline {
           stash(name: 'source', includes: 'tailor-image/**')
           def parent_image_label = parentImage(params.release_label, params.docker_registry)
           def parent_image = docker.image(parent_image_label)
-          try {
-            docker.withRegistry(params.docker_registry, docker_credentials) { parent_image.pull() }
-          } catch (all) {
-            echo("Unable to pull ${parent_image_label} as a build cache")
-          }
-
-          unstash(name: 'rosdistro')
-          withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws'],
-                            string(credentialsId: 'ansible_vault_password', variable: 'ANSIBLE_VAULT_PASS')]) {
-            retry(params.retries as Integer) {
-              parent_image = docker.build(parent_image_label,
-                "-f tailor-image/environment/Dockerfile --cache-from ${parent_image_label} " +
-                "--build-arg APT_REPO=${params.apt_repo} " +
-                "--build-arg APT_REGION=${params.apt_region} " +
-                "--build-arg RELEASE_LABEL=${params.release_label} " +
-                "--build-arg RELEASE_TRACK=${params.release_track} " +
-                "--build-arg FLAVOUR=${testing_flavour} " +
-                "--build-arg ORGANIZATION=${organization} " +
-                "--build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
-                "--build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY " +
-                "--build-arg ANSIBLE_VAULT_PASS=$ANSIBLE_VAULT_PASS .")
+          withEnv(['DOCKER_BUILDKIT=1']) {
+            try {
+              docker.withRegistry(params.docker_registry, docker_credentials) { parent_image.pull() }
+            } catch (all) {
+              echo("Unable to pull ${parent_image_label} as a build cache")
             }
-          }
 
-          parent_image.inside() {
-            sh('pip3 install --break-system-packages -e tailor-image')
-          }
-          docker.withRegistry(params.docker_registry, docker_credentials) {
-            parent_image.push()
+            unstash(name: 'rosdistro')
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws'],
+                              string(credentialsId: 'ansible_vault_password', variable: 'ANSIBLE_VAULT_PASS')]) {
+              retry(params.retries as Integer) {
+                parent_image = docker.build(parent_image_label,
+                  "${params.invalidate_cache ? '--no-cache ' : ''}" +
+                  "-f tailor-image/environment/Dockerfile --cache-from ${parent_image_label} " +
+                  "--build-arg APT_REPO=${params.apt_repo} " +
+                  "--build-arg APT_REGION=${params.apt_region} " +
+                  "--build-arg RELEASE_LABEL=${params.release_label} " +
+                  "--build-arg RELEASE_TRACK=${params.release_track} " +
+                  "--build-arg FLAVOUR=${testing_flavour} " +
+                  "--build-arg ORGANIZATION=${organization} " +
+                  "--build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
+                  "--build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY " +
+                  "--build-arg ANSIBLE_VAULT_PASS=$ANSIBLE_VAULT_PASS " +
+                  "--build-arg BUILDKIT_INLINE_CACHE=1 " +
+                  "--build-arg APT_REFRESH_KEY=${params.apt_refresh_key} .")
+              }
+            }
+
+            parent_image.inside() {
+              sh('pip3 install --break-system-packages -e tailor-image')
+            }
+            docker.withRegistry(params.docker_registry, docker_credentials) {
+              parent_image.push()
+            }
           }
         }
       }

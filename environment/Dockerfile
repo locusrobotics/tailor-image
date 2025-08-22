@@ -13,7 +13,8 @@ ARG FLAVOUR
 ARG AWS_ACCESS_KEY_ID
 ARG AWS_SECRET_ACCESS_KEY
 ARG AWS_DEFAULT_REGION=us-east-1
-ARG GITHUB_TOKEN 
+ARG GITHUB_TOKEN
+ARG APT_REFRESH_KEY
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=en_US.UTF-8 \
@@ -25,6 +26,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 SHELL ["/bin/bash", "-c"]
 
+RUN echo "APT refresh key=${APT_REFRESH_KEY}"
 RUN sed -i 's/archive.ubuntu.com/us-east-1.ec2.&/g' /etc/apt/sources.list && \
     apt-get update && apt-get install --no-install-recommends -y \
     locales \
