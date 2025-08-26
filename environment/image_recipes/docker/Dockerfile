@@ -14,6 +14,8 @@ ARG ORGANIZATION
 ARG BUNDLE_TRACK
 ARG BUNDLE_VERSION
 ARG ANSIBLE_CONFIG
+ARG OS_NAME=ubuntu
+ARG OS_VERSION=jammy
 
 # Extra args
 ARG username
@@ -24,13 +26,18 @@ ARG description
 ARG disk_size
 ARG group
 
+ARG AWS_ACCESS_KEY_ID
+#ARG AWS_SECRET_ACCESS_KEY
+
 LABEL tailor=docker_image
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=en_US.UTF-8 \
     PYTHONUNBUFFERED=1 \
     BUNDLE_ROOT=/opt/${ORGANIZATION}/${BUNDLE_VERSION}/${BUNDLE_FLAVOUR} \
-    ANSIBLE_CONFIG=${ANSIBLE_CONFIG}
+    ANSIBLE_CONFIG=${ANSIBLE_CONFIG} \
+    AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+#AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
 
 # Install basics
 RUN apt-get update && \
@@ -42,10 +49,12 @@ RUN apt-get update && \
     gnupg \
     openssl \
     libboost-all-dev \
-    tzdata \
-    libtinyxml2-9 && \
+    ca-certificates \
+    tzdata && \
     locale-gen en_US.UTF-8 && \
     rm -rf /var/lib/apt/lists/*
+
+#librospack-dev \
 
 # Add user
 RUN groupadd -r "${username}" && \
@@ -58,7 +67,25 @@ RUN groupadd -r "${username}" && \
 
 FROM base AS bundle
 
-COPY librospack.so ${BUNDLE_FOLDER}/lib/librospack.so
+# Add package mirror
+RUN apt-get update && apt-get install --no-install-recommends -y apt-transport-https apt-transport-s3 && \
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 142D5F1683E1528B && \
+    echo "deb [arch=amd64] s3://locus-tailor-artifacts/${BUNDLE_VERSION}/ubuntu ${OS_VERSION} main" >> /etc/apt/sources.list && \
+    echo "deb [arch=amd64] s3://locus-tailor-artifacts/${BUNDLE_VERSION}/ubuntu ${OS_VERSION}-mirror main" >> /etc/apt/sources.list
+
+RUN --mount=type=secret,id=aws_secret \
+    export AWS_SECRET_ACCESS_KEY=$(cat /run/secrets/aws_secret) \
+    echo "AccessKeyId = $AWS_ACCESS_KEY_ID" | tee /etc/apt/s3auth.conf && \
+    echo "SecretAccessKey = $AWS_SECRET_ACCESS_KEY" | tee -a /etc/apt/s3auth.conf && \
+    echo "Token = ''" | tee -a /etc/apt/s3auth.conf && \
+    echo "Region = 'us-east-1'" | tee -a /etc/apt/s3auth.conf
+
+
+RUN apt-get update && \
+    RTI_NC_LICENSE_ACCEPTED=yes apt-get install --no-install-recommends -qy\
+    ${ORGANIZATION}-${BUNDLE_FLAVOUR}-${BUNDLE_VERSION}  && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY .vault_pass.txt /root/.vault_pass.txt
 
 RUN cat > /tmp/default.inv <<'EOF'
@@ -66,13 +93,7 @@ RUN cat > /tmp/default.inv <<'EOF'
 default ansible_host=localhost ansible_connection=local
 EOF
 
-RUN --mount=type=bind,source=bin,target=/tmp/bin,ro \
-    --mount=type=bind,source=share/locus_ansible,target=/tmp/share/locus_ansible,ro \
-    bash -c "mkdir -p ${BUNDLE_FOLDER}/bin ${BUNDLE_FOLDER}/share && \
-    cp -a /tmp/bin/. ${BUNDLE_FOLDER}/bin/ && \
-    cp -a /tmp/share/locus_ansible ${BUNDLE_FOLDER}/share/locus_ansible && \
-    source ${BUNDLE_FOLDER}/share/locus_ansible/package.bash && \
-    cd ${BUNDLE_FOLDER}/share/locus_ansible && \
+RUN bash -c "source ${BUNDLE_FOLDER}/setup.bash && \
     ${ansible_command} ${PLAYBOOK_FILE} \
     -i /tmp/default.inv \
     ${extra_arguments_ansible} \
