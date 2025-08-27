@@ -73,7 +73,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     if build_type == 'docker':
         image_name = f'tailor-image-{name}-{distribution}-{release_label}'
         docker_registry_data = docker_registry.replace('https://', '').split('/')
-        entrypoint_path = f'/tailor-image/environment/image_recipes/docker/entrypoint.sh'
+        entrypoint_path = '/tailor-image/environment/image_recipes/docker/entrypoint.sh'
         ecr_server = docker_registry_data[0]
         ecr_repository = docker_registry_data[1]
         extra_vars = [
