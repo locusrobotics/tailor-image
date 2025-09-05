@@ -83,7 +83,7 @@ RUN pip3 install --break-system-packages -e tailor-image
 RUN apt-get update && apt-get install --no-install-recommends -y apt-transport-https apt-transport-s3 && \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 142D5F1683E1528B && \
     echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_LABEL}/ubuntu noble main" >> /etc/apt/sources.list && \
-    echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_LABEL}/ubuntu noble-mirror main" >> /etc/apt/sources.list
+    echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_LABEL}/ubuntu noble-mirror noble" >> /etc/apt/sources.list
 
 # Create auth config file for accesing s3 via apt
 RUN echo "AccessKeyId = $AWS_ACCESS_KEY_ID" | tee /etc/apt/s3auth.conf && \
