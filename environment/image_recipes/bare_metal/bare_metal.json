@@ -19,7 +19,8 @@
     "s3_bucket": "tailor-artifacts",
     "disk_size": "15",
 
-    "iso_image": ""
+    "iso_image": "",
+    "nbd_wait_timeout": "60"
   },
 
   "builders": [
@@ -118,6 +119,7 @@
       "inline": [
         "echo 'Resize image'",
         "qemu-nbd -c /dev/nbd0 images/{{user `image_name`}}.qcow2",
+        "timeout {{user `nbd_wait_timeout` }} bash -c \"while  [ ! -b  '/dev/nbd0p1' ]; do echo 'Waiting for nbd0p1 to be ready'; sleep 1; done\"",
         "e2fsck -y -f /dev/nbd0p1",
         "resize2fs /dev/nbd0p1 -M",
         "qemu-nbd -d /dev/nbd0",
