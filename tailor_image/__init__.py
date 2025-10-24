@@ -43,8 +43,8 @@ def tag_file(client, bucket, key, tag_key, tag_value):
 def wait_for_index(client, bucket, key):
     # Wait until file is not locked to avoid race condition
     now = datetime.now()
-    start_time = int(now.strftime('%Y%m%d%H%M%S'))
-    random.seed(start_time)
+    start_time = now
+    random.seed(int(now.strftime('%Y%m%d%H%M%S')))
     timeout = 300 + random.random() * 300  # random timeout from 5 to 10 minutes
     while True:
         try:
