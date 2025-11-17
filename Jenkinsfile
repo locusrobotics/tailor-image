@@ -79,6 +79,7 @@ pipeline {
       agent any
       steps {
         script {
+          error "Intentional failure for Slack bot testing"
           dir('tailor-image') {
             checkout(scm)
           }
@@ -128,6 +129,11 @@ pipeline {
           library("tailor-meta@${params.tailor_meta}")
           cleanDocker()
           deleteDir()
+        }
+        failure {
+          script  {
+            FAILED_STAGE = "Build tailor-image"
+          }
         }
       }
     }
@@ -202,6 +208,31 @@ pipeline {
             }
           }
           parallel(jobs)
+        }
+      }
+      post {
+        failure {
+          script  {
+            FAILED_STAGE = "Create images"
+          }
+        }
+      }
+    }
+  }
+  // Slack bot to notify of any step failure
+  post {
+    failure {
+      script {
+        if (params.rosdistro_job == '/ci/rosdistro/master' || params.rosdistro_job.startsWith('/ci/rosdistro/release' || params.rosdistro_job == 'ci/rosdistro/feature%2Fadd-slack-bot')) {
+          slackSend(
+            channel: '#test-ci-bot',
+            color: 'danger',
+            message: """
+*Build failure* for `${params.release_label}` (<${env.RUN_DISPLAY_URL}|Open>)
+*Sub-pipeline*: tailor-image
+*Stage*: ${FAILED_STAGE ?: 'unknown'}
+"""
+          )
         }
       }
     }
