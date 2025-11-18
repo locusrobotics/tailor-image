@@ -223,7 +223,8 @@ pipeline {
   post {
     failure {
       script {
-        if (params.rosdistro_job == '/ci/rosdistro/master' || params.rosdistro_job.startsWith('/ci/rosdistro/release') || params.rosdistro_job == '/ci/rosdistro/feature%2Fadd-slack-bot') {
+        if (params.rosdistro_job == '/ci/rosdistro/master' || params.rosdistro_job.startsWith('/ci/rosdistro/release'))
+        {
           slackSend(
             channel: '#test-ci-bot',
             color: 'danger',
