@@ -27,7 +27,7 @@ from . import (
 
 def create_image(name: str, distribution: str, apt_repo: str, release_label: str, flavour: str,
                  organization: str, docker_registry: str, rosdistro_path: pathlib.Path, timestamp:str,
-                 publish: bool = False):
+                 publish: bool = False, skip_download: bool = False):
     """Create different type of images based on recipes
     :param name: Name for the image
     :param distribution: Ubuntu distribution to build the image against
@@ -39,7 +39,11 @@ def create_image(name: str, distribution: str, apt_repo: str, release_label: str
     :param rosdistro_path: Path for the rosdistro configuration files
     :param timestamp: Timestamp of the current image build
     :param publish: Whether to publish the images
+    :param skip_download: Wheter to skip download of base images. Useful for testing
     """
+
+    # Get tailor-image path
+    tailor_image_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
     # Read configuration files
     common_config = yaml.safe_load((rosdistro_path / 'config/recipes.yaml').open())['common']
@@ -54,11 +58,12 @@ def create_image(name: str, distribution: str, apt_repo: str, release_label: str
         package = recipe[name]['package']
         provision_file = recipe[name]['provision_file']
     except KeyError:
+        # Use these for testing
         package = '/tailor-image'
         provision_file = f'{build_type}.yaml'
 
     env['ANSIBLE_CONFIG'] = find_package(package, 'ansible.cfg', env)
-    template_path = f'/tailor-image/environment/image_recipes/{build_type}/{build_type}.json'
+    template_path = f'{tailor_image_path}/environment/image_recipes/{build_type}/{build_type}.json'
     provision_file_path = find_package(package, 'playbooks/' + provision_file, env)
 
     optional_vars = []
@@ -72,7 +77,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_label: str
     if build_type == 'docker':
         image_name = f'tailor-image-{name}-{distribution}-{release_label}'
         docker_registry_data = docker_registry.replace('https://', '').split('/')
-        entrypoint_path = '/tailor-image/environment/image_recipes/docker/entrypoint.sh'
+        entrypoint_path = f'{tailor_image_path}/environment/image_recipes/docker/entrypoint.sh'
         ecr_server = docker_registry_data[0]
         ecr_repository = docker_registry_data[1]
         extra_vars = [
@@ -96,37 +101,37 @@ def create_image(name: str, distribution: str, apt_repo: str, release_label: str
     elif build_type in ['bare_metal', 'lxd'] and publish:
         # Get information about base image
         base_image = recipe[name]['base_image'].replace('$distribution', distribution)
+        base_image_local_path = '/tmp/' + base_image
 
         # Get disk size to use
-        disk_size = recipe[name].get('disk_size', 9) # In GB
+        disk_size = recipe[name].get('disk_size', 9)  # In GB
 
-        # Get base image
-        base_image_local_path = '/tmp/' + base_image
-        base_image_key = release_label + '/images/' + base_image
-        click.echo(f'Downloading image from {base_image_key}')
-        try:
-            boto3.resource('s3').Bucket(apt_repo).download_file(base_image_key, base_image_local_path)
-        except botocore.exceptions.ClientError:
-            click.echo(f'Unable to download base image from {base_image_key}, creating a new one')
-            run_command(['bash',
-                         '/tailor-image/environment/create_base_image.bash',
-                         f'{base_image_local_path}',
-                         f'{distribution}'])
-            boto3.resource('s3').Bucket(apt_repo).upload_file(base_image_local_path, base_image_key)
+        if not skip_download:
+            base_image_key = release_label + '/images/' + base_image
+            click.echo(f'Downloading image from {base_image_key}')
+            try:
+                boto3.resource('s3').Bucket(apt_repo).download_file(base_image_key, base_image_local_path)
+            except botocore.exceptions.ClientError:
+                click.echo(f'Unable to download base image from {base_image_key}, creating a new one')
+                run_command(['bash',
+                             f'{tailor_image_path}/environment/create_base_image.bash',
+                             f'{base_image_local_path}',
+                             f'{distribution}'])
+                boto3.resource('s3').Bucket(apt_repo).upload_file(base_image_local_path, base_image_key)
 
-        # Enable nbd kernel module, necesary for qemu's packer chroot builder
-        run_command(['modprobe', 'nbd'])
+            # Enable nbd kernel module, necesary for qemu's packer chroot builder
+            run_command(['modprobe', 'nbd'])
 
-        # Resize image
-        run_command(['qemu-img', 'resize', base_image_local_path, '30G'])
+            # Resize image
+            run_command(['qemu-img', 'resize', base_image_local_path, '30G'])
 
-        # Copy image
-        tmp_image = base_image_local_path.replace('disk1', 'disk1-resized')
-        run_command(['cp', base_image_local_path, tmp_image])
+            # Copy image
+            tmp_image = base_image_local_path.replace('disk1', 'disk1-resized')
+            run_command(['cp', base_image_local_path, tmp_image])
 
-        # Resize partition inside qcow image
-        run_command(['virt-resize', '--expand', '/dev/sda1', base_image_local_path, tmp_image])
-        run_command(['mv', tmp_image, base_image_local_path])
+            # Resize partition inside qcow image
+            run_command(['virt-resize', '--expand', '/dev/sda1', base_image_local_path, tmp_image])
+            run_command(['mv', tmp_image, base_image_local_path])
 
         # Generate image name
         image_name = f'{organization}_{name}_{distribution}_{release_label}_{today}'
@@ -152,8 +157,8 @@ def create_image(name: str, distribution: str, apt_repo: str, release_label: str
             sys.exit(1)
 
         # Increase fow how long we wait for image to be ready. Default is 30 minutes, sometime it might take longer
-        env['AWS_MAX_ATTEMPTS'] = '90' # minutes
-        env['AWS_POLL_DELAY_SECONDS'] = '60' # Poll for status every minute
+        env['AWS_MAX_ATTEMPTS'] = '90'  # minutes
+        env['AWS_POLL_DELAY_SECONDS'] = '60'  # Poll for status every minute
 
         extra_vars = [
             '-var', f'build_date={today}',
@@ -257,6 +262,7 @@ def main():
     parser.add_argument(
         '--timestamp', type=str, default=datetime.now().strftime("%Y%m%d.%H%M%S")
     )
+    parser.add_argument('--skip-download', action='store_true')
 
     args = parser.parse_args()
 
