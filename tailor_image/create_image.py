@@ -51,9 +51,12 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     recipe = yaml.safe_load((rosdistro_path / 'config/images.yaml').open())['images']
     distro = recipe[name]['distro']
     build_type = recipe[name]['build_type']
-    env = source_file(f'{os.environ["BUNDLE_ROOT"]}/{distro}/setup.bash')
     today = timestamp
     extra_vars: List[Any] = []
+
+    # Get BUNDLE_ROOT or BUNDLE_PATH
+    bundle_path = os.environ.get("BUNDLE_ROOT", os.environ.get("BUNDLE_PATH"))
+    env = source_file(f'{bundle_path}/{distro}/setup.bash')
 
     try:
         package = recipe[name]['package']
@@ -107,7 +110,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         # Get disk size to use
         disk_size = recipe[name].get('disk_size', 9)  # In GB
 
-        if not skip_download:
+        if not skip_download or not os.path.exists(base_image_local_path):
             base_image_key = release_label + '/images/' + base_image
             click.echo(f'Downloading image from {base_image_key}')
             try:
@@ -121,7 +124,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
                 boto3.resource('s3').Bucket(apt_repo).upload_file(base_image_local_path, base_image_key)
 
             # Enable nbd kernel module, necesary for qemu's packer chroot builder
-            run_command(['modprobe', 'nbd'])
+            run_command(['sudo', 'modprobe', 'nbd'])
 
             # Resize image
             run_command(['qemu-img', 'resize', base_image_local_path, '30G'])
