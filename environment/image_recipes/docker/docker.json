@@ -31,7 +31,7 @@
       "changes": [
         "USER {{user `username`}}",
         "LABEL tailor=\"{{user `type`}}_image\"",
-        "ENV BUNDLE_ROOT /opt/{{user `organization`}}/{{user `bundle_version`}}/{{user `bundle_flavour`}}",
+        "ENV BUNDLE_PATH /opt/{{user `organization`}}/{{user `bundle_version`}}/{{user `bundle_flavour`}}",
         "ENV LANG en_US.UTF-8",
         "WORKDIR /home/{{user `username`}}",
         "ENTRYPOINT [\"/bin/entrypoint.sh\"]",
