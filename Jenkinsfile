@@ -13,6 +13,8 @@ def images = null
 def organization = null
 def testing_flavour = null
 
+def FAILED_STAGE  = ''
+
 pipeline {
   agent none
 
