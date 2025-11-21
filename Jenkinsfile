@@ -31,6 +31,8 @@ pipeline {
     booleanParam(name: 'deploy', defaultValue: false)
     booleanParam(name: 'invalidate_cache', defaultValue: false)
     string(name: 'apt_refresh_key')
+    booleanParam(name: 'slack_notifications_enabled', defaultValue: false)
+    string(name: 'slack_notifications_channel', defaultValue: '')
   }
 
   options {
@@ -223,10 +225,10 @@ pipeline {
   post {
     failure {
       script {
-        if (params.rosdistro_job == '/ci/rosdistro/master' || params.rosdistro_job.startsWith('/ci/rosdistro/release'))
+        if (params.slack_notifications_enabled && (params.rosdistro_job == '/ci/rosdistro/master' || params.rosdistro_job.startsWith('/ci/rosdistro')))
         {
           slackSend(
-            channel: '#test-ci-bot',
+            channel: params.slack_notifications_channel,
             color: 'danger',
             message: """
 *Build failure* for `${params.release_label}` (<${env.RUN_DISPLAY_URL}|Open>)
