@@ -13,6 +13,8 @@ def images = null
 def organization = null
 def testing_flavour = null
 
+def FAILED_STAGE  = ''
+
 pipeline {
   agent none
 
@@ -31,6 +33,8 @@ pipeline {
     booleanParam(name: 'deploy', defaultValue: false)
     booleanParam(name: 'invalidate_cache', defaultValue: false)
     string(name: 'apt_refresh_key')
+    booleanParam(name: 'slack_notifications_enabled', defaultValue: false)
+    string(name: 'slack_notifications_channel', defaultValue: '')
   }
 
   options {
@@ -129,6 +133,11 @@ pipeline {
           cleanDocker()
           deleteDir()
         }
+        failure {
+          script  {
+            FAILED_STAGE = "Build tailor-image"
+          }
+        }
       }
     }
 
@@ -202,6 +211,32 @@ pipeline {
             }
           }
           parallel(jobs)
+        }
+      }
+      post {
+        failure {
+          script  {
+            FAILED_STAGE = "Create images"
+          }
+        }
+      }
+    }
+  }
+  // Slack bot to notify of any step failure
+  post {
+    failure {
+      script {
+        if (params.slack_notifications_enabled && (params.rosdistro_job == '/ci/rosdistro/master' || params.rosdistro_job.startsWith('/ci/rosdistro/release')))
+        {
+          slackSend(
+            channel: params.slack_notifications_channel,
+            color: 'danger',
+            message: """
+*Build failure* for `${params.release_label}` (<${env.RUN_DISPLAY_URL}|Open>)
+*Sub-pipeline*: tailor-image
+*Stage*: ${FAILED_STAGE ?: 'unknown'}
+"""
+          )
         }
       }
     }
