@@ -17,6 +17,9 @@
     "inventory": "/mnt/bare_metal,",
 
     "s3_bucket": "tailor-artifacts",
+    "build_only": "false",
+    "local_storage": "false",
+    "local_storage_path": "./images",
 
     "iso_image": ""
   },
@@ -116,16 +119,30 @@
           "tar -czf images/{{user `image_name`}}.tar.gz rootfs metadata.yaml",
           "rm -f images/{{user `image_name`}}.raw",
 
-          "echo 'Uploading compressed image to S3...'",
-          "aws s3 cp images/{{user `image_name`}}.tar.gz s3://{{user `s3_bucket`}}/{{user `bundle_version`}}/images/",
-          "md5sum images/{{user `image_name`}}.tar.gz > /tmp/{{user `image_name`}}",
-          "rm -f images/{{user `image_name`}}.tar.gz",
+        "# Conditional upload/storage logic",
+        "if [ \"{{user `build_only`}}\" = \"true\" ]; then",
+        "  echo 'Build-only mode: keeping image locally at images/{{user `image_name`}}.tar.gz'",
+        "elif [ \"{{user `local_storage`}}\" = \"true\" ]; then",
+        "  echo 'Local storage mode: copying to {{user `local_storage_path`}}'",
+        "  mkdir -p {{user `local_storage_path`}}/{{user `bundle_version`}}/images/",
+        "  cp images/{{user `image_name`}}.tar.gz {{user `local_storage_path`}}/{{user `bundle_version`}}/images/",
+        "  md5sum images/{{user `image_name`}}.tar.gz > {{user `local_storage_path`}}/{{user `bundle_version`}}/images/{{user `image_name`}}.md5",
+        "else",
+        "  echo 'Uploading compressed image to S3...'",
+        "  aws s3 cp images/{{user `image_name`}}.tar.gz s3://{{user `s3_bucket`}}/{{user `bundle_version`}}/images/",
+        "  md5sum images/{{user `image_name`}}.tar.gz > /tmp/{{user `image_name`}}",
+        "fi",
 
-          "echo 'Removing generated images...'",
-          "umount -l $(pwd)/rootfs",
-          "losetup -d ${loop_device}",
-          "rm -rf metadata.yaml",
-          "rm -rf images"
+        "echo 'Cleaning up mount'",
+        "umount -l $(pwd)/rootfs",
+        "losetup -d ${loop_device}",
+        "rm -rf metadata.yaml rootfs",
+
+        "# Conditional cleanup",
+        "if [ \"{{user `build_only`}}\" != \"true\" ]; then",
+        "  rm -f images/{{user `image_name`}}.tar.gz",
+        "  rm -rf images",
+        "fi"
       ]
     }
   ]
