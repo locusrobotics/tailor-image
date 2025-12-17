@@ -17,10 +17,10 @@ import botocore
 from . import (
     find_package,
     merge_dicts,
+    read_index_file,
     run_command,
     source_file,
-    tag_file,
-    wait_for_index,
+    update_index_file,
     invalidate_file_cloudfront
 )
 
@@ -231,24 +231,14 @@ def update_image_index(release_label, apt_repo, common_config, image_name):
         }
     }
 
-    data = {}
-    try:
-        # Wait for file to be ready to write
-        wait_for_index(s3, apt_repo, index_key)
-        data = json.load_s3(index_key)
-    except botocore.exceptions.ClientError as error:
-        # If file doesn't exists, we'll create a new one
-        if error.response['Error']['Code'] == 'NoSuchKey':
-            click.echo('Index file doesn\'t exist, creating a new one')
+    data = read_index_file(s3, apt_repo, index_key)
 
     try:
         data[timestamp] = merge_dicts(data[timestamp], image_data)
     except KeyError:
         data[timestamp] = image_data
 
-    # Write data to index file
-    json.dump_s3(data, index_key)
-    tag_file(s3, apt_repo, index_key, 'Lock', 'False')
+    update_index_file(data, s3, apt_repo, index_key)
 
     # Invalidate image index cache
     if 'cloudfront_distribution_id' in common_config:
