@@ -25,14 +25,13 @@ from . import (
 )
 
 
-def create_image(name: str, distribution: str, apt_repo: str, release_track: str, release_label: str, flavour: str,
+def create_image(name: str, distribution: str, apt_repo: str, release_label: str, flavour: str,
                  organization: str, docker_registry: str, rosdistro_path: pathlib.Path, timestamp:str,
                  publish: bool = False):
     """Create different type of images based on recipes
     :param name: Name for the image
     :param distribution: Ubuntu distribution to build the image against
     :param apt_repo: APT repository to get debian packages from
-    :param release_track: The main release track to use for naming, packages, etc
     :param release_label: Contains the release_track + the label for the most current version
     :param flavour: Bundle flavour to install on the images
     :param organization: Name of the organization
@@ -176,7 +175,6 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     command = ['packer', 'build',
                '-var', f'playbook_file={provision_file_path}',
                '-var', f'organization={organization}',
-               '-var', f'bundle_track={release_track}',
                '-var', f'bundle_version={release_label}'] + extra_vars + ['-timestamp-ui', template_path]
 
     run_command(command, env=env, cwd='/tmp')
@@ -250,7 +248,6 @@ def main():
     parser.add_argument('--name', type=str, required=True)
     parser.add_argument('--distribution', type=str, required=True)
     parser.add_argument('--apt-repo', type=str)
-    parser.add_argument('--release-track', type=str)
     parser.add_argument('--release-label', type=str)
     parser.add_argument('--flavour', type=str)
     parser.add_argument('--organization', type=str)

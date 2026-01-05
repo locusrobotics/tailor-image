@@ -3,7 +3,6 @@
     "image_name": "tailor_docker",
 
     "organization": "",
-    "bundle_track": "hotdog",
     "bundle_version": "hotdog",
     "bundle_flavour": "dev",
 
@@ -102,7 +101,6 @@
         "{{ user `extra_arguments_ansible` }}",
         "-e ansible_user={{user `username`}}",
         "-e organization={{user `organization`}}",
-        "-e bundle_track={{user `bundle_track`}}",
         "-e bundle_version={{user `bundle_version`}}",
         "-e bundle_flavour={{user `bundle_flavour`}}",
         "-e os_version={{user `os_version`}}",
