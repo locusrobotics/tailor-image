@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 import argparse
-import click
 import bisect
 import sys
 
@@ -9,6 +8,7 @@ from datetime import datetime, timedelta
 from typing import Any, Iterable, Dict, Set, Optional, Tuple
 
 import boto3
+import click
 
 from . import (
     ImageEntry,
@@ -35,7 +35,7 @@ def build_deletion_list(images: Iterable[ImageEntry], num_to_keep: int = None, d
         version = image.version
         image_versions[(image.name, image.extension)].add(version)
 
-    delete_packages = set()
+    delete_images = set()
 
     for (name, extension), version_set in image_versions.items():
         delete_versions = set()
@@ -49,9 +49,9 @@ def build_deletion_list(images: Iterable[ImageEntry], num_to_keep: int = None, d
             oldest_to_keep = bisect.bisect_left(sorted_versions, date_string)
             delete_versions.update(sorted_versions[:oldest_to_keep])
 
-        delete_packages.update({ImageEntry(name, version, extension) for version in delete_versions})
+        delete_images.update({ImageEntry(name, version, extension) for version in delete_versions})
 
-    return delete_packages
+    return delete_images
 
 
 def cleanup_index(image_index, keep_images) -> Dict[Any, Any]:
