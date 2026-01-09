@@ -7,6 +7,7 @@
     "bundle_track": "hotdog",
     "bundle_version": "hotdog",
     "distribution": "",
+    "release_stamp": "",
 
     "username": "tailor",
     "password": "tailor",
@@ -86,7 +87,8 @@
         "-e bundle_track={{user `bundle_track`}}",
         "-e bundle_version={{user `bundle_version`}}",
         "-e image_name={{user `image_name`}}",
-        "--inventory={{user `inventory`}}"
+        "--inventory={{user `inventory`}}",
+        "-e release_stamp={{user `release_stamp`}}"
       ]
     },
 

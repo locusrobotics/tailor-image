@@ -50,7 +50,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     env = source_file(f'{os.environ["BUNDLE_ROOT"]}/{distro}/setup.bash')
     today = timestamp
     extra_vars: List[Any] = []
-
+    env['RELEASE_STAMP'] = today
     try:
         package = recipe[name]['package']
         provision_file = recipe[name]['provision_file']
@@ -177,7 +177,8 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
                '-var', f'playbook_file={provision_file_path}',
                '-var', f'organization={organization}',
                '-var', f'bundle_track={release_track}',
-               '-var', f'bundle_version={release_label}'] + extra_vars + ['-timestamp-ui', template_path]
+               '-var', f'bundle_version={release_label}',
+               '-var', f'release_stamp={today}'] + extra_vars + ['-timestamp-ui', template_path]
 
     run_command(command, env=env, cwd='/tmp')
 

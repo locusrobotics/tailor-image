@@ -6,6 +6,7 @@
     "bundle_track": "hotdog",
     "bundle_version": "hotdog",
     "bundle_flavour": "dev",
+    "release_stamp": "",
 
     "username": "tailor",
     "password": "tailor",
@@ -106,7 +107,8 @@
         "-e bundle_version={{user `bundle_version`}}",
         "-e bundle_flavour={{user `bundle_flavour`}}",
         "-e os_version={{user `os_version`}}",
-        "-e ansible_host=default"
+        "-e ansible_host=default",
+        "-e release_stamp={{user `release_stamp`}}"
       ]
     },
 
