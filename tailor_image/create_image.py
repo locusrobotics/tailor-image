@@ -63,14 +63,12 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     provision_file_path = find_package(package, 'playbooks/' + provision_file, env)
 
     optional_vars = []
-    optional_build_args = []
     optional_var_names = ['username', 'password', 'extra_arguments_ansible',
                           'ansible_command', 'description', 'disk_size', 'group']
 
     for var in optional_var_names:
         if var in recipe[name]:
             optional_vars.extend(['-var', f'{var}={recipe[name][var]}'])
-            optional_build_args.extend(['--build-arg', f'{var}={recipe[name][var]}'])
 
     if build_type == 'docker':
         image_name = f'tailor-image-{name}-{distribution}-{release_label}'
@@ -78,47 +76,64 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         entrypoint_path ='/tailor-image/environment/image_recipes/docker/entrypoint.sh'
         ecr_server = docker_registry_data[0]
         ecr_repository = docker_registry_data[1]
+        image_base_tag = f'{ecr_server}/{ecr_repository}:{image_name}-base'
         image_tag = f'{ecr_server}/{ecr_repository}:{image_name}'
         dockerfile_path=f'/tailor-image/environment/image_recipes/{build_type}/Dockerfile'
-        bundle_folder=f'{os.environ["BUNDLE_ROOT"]}/{distro}'
         build_args = [
-            '--build-arg', f'TYPE={build_type}',
-            '--build-arg', f'BUNDLE_FLAVOUR={flavour}',
-            '--build-arg', f'IMAGE_NAME={image_name}',
-            '--build-arg', f'ECR_SERVER={ecr_server}',
             '--build-arg', f'OS_VERSION={distribution}',
-            '--build-arg', f'ECR_REPOSITORY={ecr_repository}',
-            '--build-arg', f'PLAYBOOK_FILE={provision_file_path}',
-            '--build-arg', f'BUNDLE_FOLDER={bundle_folder}',
             '--build-arg', f'ORGANIZATION={organization}',
-            '--build-arg', f'BUNDLE_TRACK={release_track}',
+            '--build-arg', f'BUNDLE_FLAVOUR={flavour}',
             '--build-arg', f'BUNDLE_VERSION={release_label}',
             '--build-arg', f'AWS_ACCESS_KEY_ID={os.environ["AWS_ACCESS_KEY_ID"]}',
-            '--secret','id=aws_secret,src=aws-secret.txt',
-            '--build-arg', f'ANSIBLE_CONFIG={env.get("ANSIBLE_CONFIG", "")}'
+            '--build-arg', f'USERNAME={recipe[name]['username']}',
+            '--secret','id=aws_secret,src=build-context/aws-secret.env',
+            '--secret', 'id=creds,src=build-context/creds.env'
         ]
 
-        click.echo(f'Building {build_type} image with: {provision_file}', err=True)
+        click.echo(f'Building {build_type} image {image_base_tag}', err=True)
         click.echo('Preparing build context...', err=True)
         run_command(['rm', '-rf', 'build-context'])
         run_command(['mkdir', '-p', 'build-context'])
-        # run_command(['cp', '-r', os.path.join(bundle_folder, 'bin'), 'build-context/bin'])
-        # run_command(['cp', '-r', os.path.join(bundle_folder, 'share/locus_ansible'), 'build-context/share/locus_ansible'])
         run_command(['cp', entrypoint_path, 'build-context/entrypoint.sh'])
-        run_command(['cp', '/rosdistro/rosdep/rosdep.yaml', 'build-context/rosdep.yaml'])
-        run_command(['cp', '/home/tailor/.vault_pass.txt', 'build-context/.vault_pass.txt'])
-        run_command(['echo', '-n', os.environ["AWS_ACCESS_KEY_ID"], '>', 'build-context/aws-secret.txt'])
+        with open('build-context/aws-secret.env', 'w') as f:
+            f.write(f'AWS_SECRET_ACCESS_KEY={os.environ.get("AWS_SECRET_ACCESS_KEY")}')
+        with open('build-context/creds.env', 'w') as f:
+            f.write(f'PASSWORD={recipe[name]["password"]}')
 
-        # Make sure we remove old containers before creting new ones
-        run_command(['docker', 'rm', '-f', 'default'], check=False)
+        # Run docker build command
+        container_name = 'default'
+        run_command(['docker', 'rm', '-f', container_name], check=False)
         docker_build_cmd = (
-            ['docker', 'build', '--target', 'runtime']
+            ['docker', 'build','--progress=plain','--target', 'runtime']
             + build_args
-            + optional_build_args
-            + ['-f', dockerfile_path, '-t', image_tag]
+            + ['-f', dockerfile_path, '-t', image_base_tag]
             + ['build-context']
         )
         run_command(docker_build_cmd)
+
+        # Configure docker with ansible and docker commit
+        click.echo(f'Configure {build_type} image {image_tag} with: {provision_file}', err=True)
+        run_command([
+            'docker', 'run', '-d', '--name', container_name, image_base_tag, 'sleep', 'infinity'
+        ])
+        ansible_cmd = [
+            'bash', '-lc',
+            f'source "{os.environ["BUNDLE_ROOT"]}/{distro}/setup.bash" && '
+            f'locus-ansible-playbook "{provision_file_path}" '
+            f'-i "{container_name}", '
+            '-e ansible_connection=docker '
+            f'-e ansible_host="{container_name}" '
+            f'-e organization="{organization}" '
+            f'-e bundle_version="{release_label}" '
+            f'-e bundle_flavour="{flavour}" '
+            f'{recipe[name]['extra_arguments_ansible']} '
+            '--vault-password-file=/home/tailor/.vault_pass.txt '
+        ]
+
+        os.chdir(f'{os.environ["BUNDLE_ROOT"]}/{distro}/share/locus_ansible')
+        run_command(ansible_cmd)
+        run_command(['docker', 'commit', container_name, image_tag])
+
         if publish:
             click.echo('Docker login...', err=True)
             login_command = f"aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin {ecr_server}"
@@ -129,6 +144,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
             run_command([logout_cmd], shell=True)
 
         run_command(['rm', '-rf', 'build-context'])
+        run_command(['docker', 'rm', '-f', container_name], check=False)
         click.echo(f'Image {build_type} finished building', err=True)
         return 0
 
