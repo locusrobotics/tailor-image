@@ -71,7 +71,7 @@ FROM base AS bundle
 RUN apt-get update && apt-get install --no-install-recommends -y apt-transport-https apt-transport-s3 && \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 142D5F1683E1528B && \
     echo "deb [arch=amd64] s3://locus-tailor-artifacts/${BUNDLE_VERSION}/ubuntu ${OS_VERSION} main" >> /etc/apt/sources.list && \
-    echo "deb [arch=amd64] s3://locus-tailor-artifacts/${BUNDLE_VERSION}/ubuntu ${OS_VERSION}-mirror main" >> /etc/apt/sources.list
+    echo "deb [arch=amd64] s3://locus-tailor-artifacts/${BUNDLE_VERSION}/ubuntu ${OS_VERSION}-mirror ${OS_VERSION}" >> /etc/apt/sources.list
 
 RUN --mount=type=secret,id=aws_secret \
     export AWS_SECRET_ACCESS_KEY=$(cat /run/secrets/aws_secret) \
