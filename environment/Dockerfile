@@ -24,6 +24,20 @@ ENV DEBIAN_FRONTEND=noninteractive \
     AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
     GITHUB_TOKEN=${GITHUB_TOKEN}
 
+ARG AWS_ACCESS_KEY_ID
+ARG AWS_SECRET_ACCESS_KEY
+ARG AWS_DEFAULT_REGION=us-east-1
+ARG GITHUB_TOKEN
+ARG APT_REFRESH_KEY
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=en_US.UTF-8 \
+    PYTHONUNBUFFERED=1 \
+    BUNDLE_ROOT=/opt/${ORGANIZATION}/${RELEASE_LABEL}/${FLAVOUR} \
+    AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} \
+    AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
+    GITHUB_TOKEN=${GITHUB_TOKEN}
+
 SHELL ["/bin/bash", "-c"]
 
 RUN echo "APT refresh key=${APT_REFRESH_KEY}"
@@ -83,7 +97,7 @@ RUN pip3 install --break-system-packages -e tailor-image
 RUN apt-get update && apt-get install --no-install-recommends -y apt-transport-https apt-transport-s3 && \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 142D5F1683E1528B && \
     echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_LABEL}/ubuntu noble main" >> /etc/apt/sources.list && \
-    echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_LABEL}/ubuntu noble-mirror main" >> /etc/apt/sources.list
+    echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_LABEL}/ubuntu noble-mirror noble" >> /etc/apt/sources.list
 
 # Create auth config file for accesing s3 via apt
 RUN echo "AccessKeyId = $AWS_ACCESS_KEY_ID" | tee /etc/apt/s3auth.conf && \
