@@ -79,6 +79,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         image_base_tag = f'{ecr_server}/{ecr_repository}:{image_name}-base'
         image_tag = f'{ecr_server}/{ecr_repository}:{image_name}'
         dockerfile_path=f'/tailor-image/environment/image_recipes/{build_type}/Dockerfile'
+        PASSWORD=recipe[name]["password"]
         build_args = [
             '--build-arg', f'OS_VERSION={distribution}',
             '--build-arg', f'ORGANIZATION={organization}',
@@ -87,8 +88,8 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
             '--build-arg', f'AWS_ACCESS_KEY_ID={os.environ["AWS_ACCESS_KEY_ID"]}',
             '--build-arg', f'APT_REPO={common_config['apt_repo']}',
             '--build-arg', f'USERNAME={recipe[name]['username']}',
-            '--secret','id=aws_secret,src=build-context/aws-secret.env',
-            '--secret', 'id=creds,src=build-context/creds.env'
+            '--secret','id=aws_secret,env=AWS_SECRET_ACCESS_KEY',
+            '--secret', f'id=creds,env={PASSWORD}'
         ]
 
         click.echo(f'Building {build_type} image {image_base_tag}', err=True)
@@ -96,10 +97,6 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         run_command(['rm', '-rf', 'build-context'])
         run_command(['mkdir', '-p', 'build-context'])
         run_command(['cp', entrypoint_path, 'build-context/entrypoint.sh'])
-        with open('build-context/aws-secret.env', 'w') as f:
-            f.write(f'AWS_SECRET_ACCESS_KEY={os.environ.get("AWS_SECRET_ACCESS_KEY")}')
-        with open('build-context/creds.env', 'w') as f:
-            f.write(f'PASSWORD={recipe[name]["password"]}')
 
         # Run docker build command
         container_name = 'default'

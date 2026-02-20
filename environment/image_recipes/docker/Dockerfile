@@ -37,7 +37,7 @@ RUN apt-get update && \
 
 # Add user
 RUN --mount=type=secret,id=creds \
-    . /run/secrets/creds && \
+    PASSWORD="$(cat /run/secrets/creds)" && \
     groupadd -r "${USERNAME}" && \
     useradd -ms /bin/bash \
     -p "$(echo "${PASSWORD}" | openssl passwd -1 -stdin)" \
@@ -55,7 +55,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y apt-transport-h
     echo "deb [arch=amd64] ${APT_REPO}/${BUNDLE_VERSION}/ubuntu ${OS_VERSION}-mirror ${OS_VERSION}" >> /etc/apt/sources.list
 
 RUN --mount=type=secret,id=aws_secret \
-    . /run/secrets/aws_secret && \
+    AWS_SECRET_ACCESS_KEY="$(cat /run/secrets/aws_secret)" && \
     echo "AccessKeyId = $AWS_ACCESS_KEY_ID" | tee /etc/apt/s3auth.conf && \
     echo "SecretAccessKey = $AWS_SECRET_ACCESS_KEY" | tee -a /etc/apt/s3auth.conf && \
     echo "Token = ''" | tee -a /etc/apt/s3auth.conf && \
