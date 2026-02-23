@@ -88,15 +88,13 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
             '--build-arg', f'AWS_ACCESS_KEY_ID={os.environ["AWS_ACCESS_KEY_ID"]}',
             '--build-arg', f'APT_REPO={common_config['apt_repo']}',
             '--build-arg', f'USERNAME={recipe[name]['username']}',
+            '--build-arg', f'ENTRYPOINT_PATH={entrypoint_path}',
             '--secret','id=aws_secret,env=AWS_SECRET_ACCESS_KEY',
             '--secret', f'id=creds,env={PASSWORD}'
         ]
 
         click.echo(f'Building {build_type} image {image_base_tag}', err=True)
         click.echo('Preparing build context...', err=True)
-        run_command(['rm', '-rf', 'build-context'])
-        run_command(['mkdir', '-p', 'build-context'])
-        run_command(['cp', entrypoint_path, 'build-context/entrypoint.sh'])
 
         # Run docker build command
         container_name = 'default'
@@ -105,7 +103,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
             ['docker', 'build','--progress=plain','--target', 'runtime']
             + build_args
             + ['-f', dockerfile_path, '-t', image_base_tag]
-            + ['build-context']
+            + ['.']
         )
         run_command(docker_build_cmd)
 
