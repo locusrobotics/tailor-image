@@ -79,26 +79,22 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         image_base_tag = f'{ecr_server}/{ecr_repository}:{image_name}-base'
         image_tag = f'{ecr_server}/{ecr_repository}:{image_name}'
         dockerfile_path=f'/tailor-image/environment/image_recipes/{build_type}/Dockerfile'
+        PASSWORD=recipe[name]["password"]
         build_args = [
             '--build-arg', f'OS_VERSION={distribution}',
             '--build-arg', f'ORGANIZATION={organization}',
             '--build-arg', f'BUNDLE_FLAVOUR={flavour}',
             '--build-arg', f'BUNDLE_VERSION={release_label}',
             '--build-arg', f'AWS_ACCESS_KEY_ID={os.environ["AWS_ACCESS_KEY_ID"]}',
+            '--build-arg', f'APT_REPO={common_config['apt_repo']}',
             '--build-arg', f'USERNAME={recipe[name]['username']}',
-            '--secret','id=aws_secret,src=build-context/aws-secret.env',
-            '--secret', 'id=creds,src=build-context/creds.env'
+            '--build-arg', f'ENTRYPOINT_PATH={entrypoint_path}',
+            '--secret','id=aws_secret,env=AWS_SECRET_ACCESS_KEY',
+            '--secret', f'id=creds,env={PASSWORD}'
         ]
 
         click.echo(f'Building {build_type} image {image_base_tag}', err=True)
         click.echo('Preparing build context...', err=True)
-        run_command(['rm', '-rf', 'build-context'])
-        run_command(['mkdir', '-p', 'build-context'])
-        run_command(['cp', entrypoint_path, 'build-context/entrypoint.sh'])
-        with open('build-context/aws-secret.env', 'w') as f:
-            f.write(f'AWS_SECRET_ACCESS_KEY={os.environ.get("AWS_SECRET_ACCESS_KEY")}')
-        with open('build-context/creds.env', 'w') as f:
-            f.write(f'PASSWORD={recipe[name]["password"]}')
 
         # Run docker build command
         container_name = 'default'
@@ -107,11 +103,11 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
             ['docker', 'build','--progress=plain','--target', 'runtime']
             + build_args
             + ['-f', dockerfile_path, '-t', image_base_tag]
-            + ['build-context']
+            + ['.']
         )
         run_command(docker_build_cmd)
 
-        # Configure docker with ansible and docker commit
+        # Configure docker with ansible
         click.echo(f'Configure {build_type} image {image_tag} with: {provision_file}', err=True)
         run_command([
             'docker', 'run', '-d', '--name', container_name, image_base_tag, 'sleep', 'infinity'
@@ -119,7 +115,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
         ansible_cmd = [
             'bash', '-lc',
             f'source "{os.environ["BUNDLE_ROOT"]}/{distro}/setup.bash" && '
-            f'locus-ansible-playbook "{provision_file_path}" '
+            f'{recipe[name]['ansible_command']} "{provision_file_path}" '
             f'-i "{container_name}", '
             '-e ansible_connection=docker '
             f'-e ansible_host="{container_name}" '
@@ -130,7 +126,8 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
             '--vault-password-file=/home/tailor/.vault_pass.txt '
         ]
 
-        os.chdir(f'{os.environ["BUNDLE_ROOT"]}/{distro}/share/locus_ansible')
+        # Run ansible command inside ansible package
+        os.chdir(f'{os.environ["BUNDLE_ROOT"]}/{distro}/share/{recipe[name]['package']}')
         run_command(ansible_cmd)
         run_command(['docker', 'commit', container_name, image_tag])
 
