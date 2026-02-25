@@ -122,6 +122,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
             f'-e organization="{organization}" '
             f'-e bundle_version="{release_label}" '
             f'-e bundle_flavour="{flavour}" '
+            f'-e os_version="{distribution}" '
             f'{recipe[name]['extra_arguments_ansible']} '
             '--vault-password-file=/home/tailor/.vault_pass.txt '
         ]
