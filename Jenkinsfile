@@ -22,8 +22,8 @@ pipeline {
   parameters {
     string(name: 'rosdistro_job', defaultValue: '/ci/toydistro/master')
     string(name: 'release_label', defaultValue: 'hotdog')
-    string(name: 'num_to_keep', defaultValue: '10')
-    string(name: 'days_to_keep', defaultValue: '10')
+    string(name: 'num_to_keep', defaultValue: '30')
+    string(name: 'days_to_keep', defaultValue: '30')
     string(name: 'retries', defaultValue: '3')
     string(name: 'timestamp')
     string(name: 'docker_registry')
