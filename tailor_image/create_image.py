@@ -17,22 +17,21 @@ import botocore
 from . import (
     find_package,
     merge_dicts,
+    read_index_file,
     run_command,
     source_file,
-    tag_file,
-    wait_for_index,
+    update_index_file,
     invalidate_file_cloudfront
 )
 
 
-def create_image(name: str, distribution: str, apt_repo: str, release_track: str, release_label: str, flavour: str,
+def create_image(name: str, distribution: str, apt_repo: str, release_label: str, flavour: str,
                  organization: str, docker_registry: str, rosdistro_path: pathlib.Path, timestamp:str,
                  publish: bool = False):
     """Create different type of images based on recipes
     :param name: Name for the image
     :param distribution: Ubuntu distribution to build the image against
     :param apt_repo: APT repository to get debian packages from
-    :param release_track: The main release track to use for naming, packages, etc
     :param release_label: Contains the release_track + the label for the most current version
     :param flavour: Bundle flavour to install on the images
     :param organization: Name of the organization
@@ -176,7 +175,6 @@ def create_image(name: str, distribution: str, apt_repo: str, release_track: str
     command = ['packer', 'build',
                '-var', f'playbook_file={provision_file_path}',
                '-var', f'organization={organization}',
-               '-var', f'bundle_track={release_track}',
                '-var', f'bundle_version={release_label}'] + extra_vars + ['-timestamp-ui', template_path]
 
     run_command(command, env=env, cwd='/tmp')
@@ -231,24 +229,14 @@ def update_image_index(release_label, apt_repo, common_config, image_name):
         }
     }
 
-    data = {}
-    try:
-        # Wait for file to be ready to write
-        wait_for_index(s3, apt_repo, index_key)
-        data = json.load_s3(index_key)
-    except botocore.exceptions.ClientError as error:
-        # If file doesn't exists, we'll create a new one
-        if error.response['Error']['Code'] == 'NoSuchKey':
-            click.echo('Index file doesn\'t exist, creating a new one')
+    data = read_index_file(s3, apt_repo, index_key)
 
     try:
         data[timestamp] = merge_dicts(data[timestamp], image_data)
     except KeyError:
         data[timestamp] = image_data
 
-    # Write data to index file
-    json.dump_s3(data, index_key)
-    tag_file(s3, apt_repo, index_key, 'Lock', 'False')
+    update_index_file(data, s3, apt_repo, index_key)
 
     # Invalidate image index cache
     if 'cloudfront_distribution_id' in common_config:
@@ -260,7 +248,6 @@ def main():
     parser.add_argument('--name', type=str, required=True)
     parser.add_argument('--distribution', type=str, required=True)
     parser.add_argument('--apt-repo', type=str)
-    parser.add_argument('--release-track', type=str)
     parser.add_argument('--release-label', type=str)
     parser.add_argument('--flavour', type=str)
     parser.add_argument('--organization', type=str)

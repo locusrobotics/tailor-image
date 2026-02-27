@@ -4,7 +4,6 @@
     "image_name": "tailor_bot",
 
     "organization": "",
-    "bundle_track": "hotdog",
     "bundle_version": "hotdog",
     "distribution": "",
 
@@ -81,7 +80,6 @@
         "{{ user `extra_arguments_ansible` }}",
         "-e ansible_user={{user `username`}}",
         "-e organization={{user `organization`}}",
-        "-e bundle_track={{user `bundle_track`}}",
         "-e bundle_version={{user `bundle_version`}}",
         "-e image_name={{user `image_name`}}",
         "--inventory={{user `inventory`}}"

@@ -21,10 +21,9 @@ pipeline {
 
   parameters {
     string(name: 'rosdistro_job', defaultValue: '/ci/toydistro/master')
-    string(name: 'release_track', defaultValue: 'hotdog')
     string(name: 'release_label', defaultValue: 'hotdog')
-    string(name: 'num_to_keep', defaultValue: '10')
-    string(name: 'days_to_keep', defaultValue: '10')
+    string(name: 'num_to_keep', defaultValue: '30')
+    string(name: 'days_to_keep', defaultValue: '30')
     string(name: 'retries', defaultValue: '3')
     string(name: 'timestamp')
     string(name: 'docker_registry')
@@ -107,7 +106,6 @@ pipeline {
                   "--build-arg APT_REPO=${params.apt_repo} " +
                   "--build-arg APT_REGION=${params.apt_region} " +
                   "--build-arg RELEASE_LABEL=${params.release_label} " +
-                  "--build-arg RELEASE_TRACK=${params.release_track} " +
                   "--build-arg FLAVOUR=${build_flavour} " +
                   "--build-arg ORGANIZATION=${organization} " +
                   "--build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
@@ -184,7 +182,6 @@ pipeline {
                               --name ${image} \
                               --distribution ${distribution} \
                               --apt-repo ${params.apt_repo - 's3://'} \
-                              --release-track ${params.release_track} \
                               --release-label ${params.release_label} \
                               --flavour ${bundle_flavour} \
                               --organization ${organization} \
@@ -221,6 +218,56 @@ pipeline {
         }
       }
     }
+
+    stage("Cleanup images") {
+      agent any
+      steps {
+        script {
+          try {
+            def parent_image = docker.image(parentImage(params.release_label, params.docker_registry))
+            retry(params.retries as Integer) {
+              docker.withRegistry(params.docker_registry, docker_credentials) { parent_image.pull() }
+            }
+            parent_image.inside() {
+              unstash(name: 'rosdistro')
+              sh("cleanup_images " +
+                "--release-label ${params.release_label} " +
+                "--apt-repo ${params.apt_repo - 's3://'} " +
+                "--organization ${organization} " +
+                "${params.days_to_keep ? '--days-to-keep ' + params.days_to_keep : ''} " +
+                "${params.num_to_keep ? '--num-to-keep ' + params.num_to_keep : ''}"
+              )
+            }
+          } finally {
+            library("tailor-meta@${params.tailor_meta}")
+            cleanDocker()
+            try {
+              deleteDir()
+            } catch (e) {
+              println e
+            }
+          }
+        }
+      }
+    }
+
+    stage("Invalidate CDN's cache for the index file") {
+      agent any
+      steps {
+        script {
+          unstash(name: 'rosdistro')
+          common_config = readYaml(file: recipes_yaml)['common']
+          def distribution_id = common_config.find{ it.key == "cloudfront_distribution_id" }?.value
+
+          if(distribution_id) {
+            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
+              cfInvalidate(distribution:distribution_id, paths:["/$params.release_label/images/index"])
+            }
+          }
+        }
+      }
+    }
+
   }
   // Slack bot to notify of any step failure
   post {
