@@ -5,7 +5,6 @@
     "build_date": "",
     "description": "AMI built by tailor",
 
-    "bundle_track": "hotdog",
     "bundle_version": "hotdog",
 
     "username": "ubuntu",
@@ -59,7 +58,6 @@
         "Release Label": "{{user `release_label`}}",
         "Build Date": "{{user `build_date`}}",
         "Comment": "{{user `image_description`}}",
-        "Bundle Track": "{{user `bundle_track` }}",
         "Bundle Version": "{{user `bundle_version` }}"
       }
     }
@@ -98,7 +96,6 @@
       "extra_arguments": [
         "--vault-password-file=/home/tailor/.vault_pass.txt",
         "{{ user `extra_arguments_ansible` }}",
-        "-e bundle_track={{user `bundle_track`}}",
         "-e bundle_version={{user `bundle_version`}}",
         "--scp-extra-args", "'-O'",
         "--ssh-extra-args", "-o IdentitiesOnly=yes -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa"
