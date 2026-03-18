@@ -60,7 +60,6 @@ def source_file(path):
 
 def tag_file(client, bucket, key, tag_key, tag_value):
     tagset = {"TagSet": [{"Key": tag_key, "Value": tag_value}]}
-    click.echo(f"Setting Lock on {key} to: {tag_value}")
     client.put_object_tagging(Bucket=bucket, Key=key, Tagging=tagset)
 
 
@@ -79,10 +78,8 @@ def wait_for_index(client, bucket, key):
             tags = client.get_object_tagging(Bucket=bucket, Key=key)
             for tag in tags["TagSet"]:
                 time_delta = datetime.now() - start_time
-                click.echo(
-                    f'Checking tag: {tag["Key"]}:{tag["Value"]}'
-                )
                 if tag["Key"] == "Lock" and tag["Value"] == "False":
+                    click.echo(f"Locking index file: {key}")
                     tag_file(client, bucket, key, "Lock", "True")
                     break
                 if tag["Key"] == "Lock" and tag["Value"] == "True":
@@ -92,12 +89,16 @@ def wait_for_index(client, bucket, key):
                         stop_checking = True
                         break
                     time.sleep(2.0)
+                if "Lock" not in tag:
+                    # If file exists but doesn't have lock tag, add it and allow writing to index
+                    click.echo(f"Index file {key} doesn't have a 'Lock' tag, creating and setting to unlocked")
+                    tag_file(client, bucket, key, "Lock", "False")
             else:
                 continue
             break
         except botocore.exceptions.ClientError as error:
             if error.response["Error"]["Code"] in ["NoSuchKey", "MethodNotAllowed"]:
-                # Index file doesn't exists, create an empty one
+                # Index file doesn't exist, create an empty one and set it to unlocked
                 click.echo(f"{bucket}/{key} doesn't exist, creating...")
                 client.put_object(Bucket=bucket, Key=key, Body="{}", Tagging="Lock=True")
                 break
@@ -184,8 +185,9 @@ def read_index_file(client, bucket, index_key):
         wait_for_index(client, bucket, index_key)
         data = json.load_s3(index_key)
         tag_file(client, bucket, index_key, "Lock", "False")
+        click.echo(f"Unlocking index file: {index_key}")
     except botocore.exceptions.ClientError as error:
-        # If file doesn't exists, we'll create a new one
+        # If file doesn't exist, we'll create a new one
         if error.response["Error"]["Code"] == "NoSuchKey":
             click.echo("Index file doesn't exist, creating a new one")
 
@@ -200,3 +202,4 @@ def update_index_file(data, client, bucket, index_key):
     wait_for_index(client, bucket, index_key)
     json.dump_s3(data, index_key)
     tag_file(client, bucket, index_key, "Lock", "False")
+    click.echo(f"Unlocking index file: {index_key}")
