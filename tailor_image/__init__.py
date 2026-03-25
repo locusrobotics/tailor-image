@@ -34,44 +34,50 @@ def source_file(path):
 
 
 def tag_file(client, bucket, key, tag_key, tag_value):
-    tagset = {'TagSet': [{'Key': tag_key, 'Value': tag_value}]}
-    client.put_object_tagging(Bucket=bucket,
-                              Key=key,
-                              Tagging=tagset)
+    tagset = {"TagSet": [{"Key": tag_key, "Value": tag_value}]}
+    client.put_object_tagging(Bucket=bucket, Key=key, Tagging=tagset)
 
 
-def wait_for_index(client, bucket, key):
-    # Wait until file is not locket to avoid race condition
-    start_time = datetime.now()
-    random.seed(start_time)
-    timeout = 300 + random.random() * 300  # random timeout from 5 to 10 minutes
+def wait_for_index(client, bucket, key, timeout=600):
+    # Wait until file is not locked to avoid race condition
+    click.echo(f"Waiting for {bucket}/{key} to be unlocked...")
+    now = datetime.now()
+    start_time = now
+    random.seed(int(now.strftime("%Y%m%d%H%M%S")))
+    timeout = (timeout / 2) + random.random() * (timeout / 2)  # random timeout from timeout/2 to timeout seconds
+    stop_checking = False
     while True:
-        try:
-            time.sleep(random.random()*5.0)
-            tags = client.get_object_tagging(Bucket=bucket, Key=key)
-            for tag in tags['TagSet']:
-                print(f'Checking tag: {tag["Key"]}:{tag["Value"]}')
-                if tag['Key'] == 'Lock' and tag['Value'] == 'False':
-                    print("Locking file")
-                    tag_file(client, bucket, key, 'Lock', 'True')
-                    break
-                elif tag['Key'] == 'Lock' and tag['Value'] == 'True':
-                    # If timeout is reached, allow writing to index
-                    time_delta = datetime.now() - start_time
-                    if time_delta.total_seconds() >= timeout:
-                        break
-                    time.sleep(2.)
-            else:
-                continue
+        if stop_checking:
+            lock_index_file(client, bucket, key)
             break
+        try:
+            tags = client.get_object_tagging(Bucket=bucket, Key=key)["TagSet"]
+
+            # If the object doesn't have any tags, create and get lock
+            if not any(tag.get("Key") == "Lock" for tag in tags):
+                click.echo("fNo Lock tag found for {bucket}/{key}, creating tag and getting lock")
+                stop_checking = True
+
+            # If the object has the Key tag and is set to true, wait until it's set to False or timeout
+            if any(tag.get("Key") == "Lock" and tag.get("Value") == "True" for tag in tags):
+                # If timeout is reached, allow writing to index
+                time_delta = datetime.now() - start_time
+                if time_delta.total_seconds() >= timeout:
+                    click.echo(f"Timeout reached for {bucket}/{key}, getting lock")
+                    stop_checking = True
+                else:
+                    click.echo(
+                        f"Index {bucket}/{key} locked, timeout in {int(timeout - time_delta.total_seconds())}s"
+                    )
+                time.sleep(random.random() * 10.0)
+            else:
+                click.echo(f"Index for {bucket}/{key} unlocked, getting lock")
+                stop_checking = True
         except botocore.exceptions.ClientError as error:
-            if error.response['Error']['Code'] == 'NoSuchKey':
-                # Index file doesn't exists, create an empty one
-                print(f'{bucket}/{key} doesn\'t exist, creating...')
-                client.put_object(Bucket=bucket,
-                                  Key=key,
-                                  Body='{}',
-                                  Tagging='Lock=True')
+            if error.response["Error"]["Code"] in ["NoSuchKey", "MethodNotAllowed"]:
+                # Index file doesn't exist, create an empty one and set it to locked
+                click.echo(f"{bucket}/{key} doesn't exist, creating...")
+                client.put_object(Bucket=bucket, Key=key, Body="{}", Tagging="Lock=True")
                 break
 
 
@@ -104,3 +110,65 @@ def merge_dicts(dict_a, dict_b, path=None):
         else:
             dict_a[key] = dict_b[key]
     return dict_a
+
+
+def parse_image_name(image_path: str) -> ImageEntry:
+    match = re.search(IMAGE_REGEX, image_path)
+    return ImageEntry(*match.groups())
+
+
+def list_s3_images(client, bucket, prefix) -> List[ImageEntry]:
+    """List S3 images."""
+    files = []
+
+    objects = client.list_objects_v2(Bucket=bucket, Prefix=prefix)
+    if "Contents" in objects:
+        for obj in objects["Contents"]:
+            files.append(parse_image_name(obj["Key"]))
+
+    return files
+
+
+def delete_s3_images(images: Iterable[ImageEntry], bucket: str, prefix: str):
+    """
+    Delete files from s3, including all versions if versioning is enabled.
+    """
+    s3_resource = boto3.resource("s3")
+    bucket = s3_resource.Bucket(bucket)
+
+    for image in images:
+        key = f"{prefix}/{image}"
+
+        click.echo(f"Deleting {image}")
+
+        # Delete all versions if versioning is enabled
+        object_versions = bucket.object_versions.filter(Prefix=key)
+        for version in object_versions:
+            version.delete()
+
+        # Also delete the current object (in case versioning is not enabled)
+        bucket.Object(key).delete()
+
+
+def lock_index_file(client, bucket, index_key):
+    tag_file(client, bucket, index_key, "Lock", "True")
+    click.echo(f"Locking index file: {index_key}")
+
+
+def unlock_index_file(client, bucket, index_key):
+    tag_file(client, bucket, index_key, "Lock", "False")
+    click.echo(f"Unlocking index file: {index_key}")
+
+
+def read_index_file(client, bucket, index_key):
+    # Helper method
+    json.load_s3 = lambda f: json.load(client.get_object(Bucket=bucket, Key=f)["Body"])
+
+    return json.load_s3(index_key)
+
+
+def write_index_file(data, client, bucket, index_key):
+    """Write data to image index file."""
+    json.dump_s3 = lambda obj, f: client.put_object(Bucket=bucket, Key=f, Body=json.dumps(obj, indent=2))
+
+    json.dump_s3(data, index_key)
