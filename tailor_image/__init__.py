@@ -89,10 +89,6 @@ def wait_for_index(client, bucket, key):
                         stop_checking = True
                         break
                     time.sleep(2.0)
-                if "Lock" not in tag:
-                    # If file exists but doesn't have lock tag, add it and allow writing to index
-                    click.echo(f"Index file {key} doesn't have a 'Lock' tag, creating and setting to unlocked")
-                    tag_file(client, bucket, key, "Lock", "False")
             else:
                 continue
             break
