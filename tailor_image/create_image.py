@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-import json
 import os
 import pathlib
 import sys
@@ -20,8 +19,10 @@ from . import (
     read_index_file,
     run_command,
     source_file,
-    update_index_file,
-    invalidate_file_cloudfront
+    invalidate_file_cloudfront,
+    unlock_index_file,
+    write_index_file,
+    wait_for_index,
 )
 
 
@@ -180,6 +181,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_label: str
     run_command(command, env=env, cwd='/tmp')
 
     if build_type in ['bare_metal', 'lxd'] and publish:
+        click.echo(f'Updating index for {image_name} image', err=True)
         update_image_index(release_label, apt_repo, common_config, image_name)
 
 
@@ -203,18 +205,12 @@ def update_image_index(release_label, apt_repo, common_config, image_name):
     """
     s3 = boto3.client('s3')
 
-    # Helper methods
-    json.load_s3 = lambda f: json.load(s3.get_object(Bucket=apt_repo, Key=f)['Body'])
-    json.dump_s3 = lambda obj, f: s3.put_object(Bucket=apt_repo,
-                                                Key=f,
-                                                Body=json.dumps(obj, indent=2))
-
     index_key = release_label + '/images/index'
 
     _, flavour, distribution, release_label, timestamp = image_name.split('_')
 
     # Read checksum from generated file
-    with open(f'/tmp/{image_name}', 'r') as checksum_file:
+    with open(f'/tmp/{image_name}', 'r', encoding='utf-8') as checksum_file:
         checksum = checksum_file.read().replace('\n', '').split(' ')[0]
     os.remove(f'/tmp/{image_name}')
 
@@ -229,14 +225,21 @@ def update_image_index(release_label, apt_repo, common_config, image_name):
         }
     }
 
+    # Wait until index file is unlocked and lock it while we update it
+    wait_for_index(s3, apt_repo, index_key)
+
     data = read_index_file(s3, apt_repo, index_key)
 
     try:
         data[timestamp] = merge_dicts(data[timestamp], image_data)
+        click.echo(f'Merging image index data for {flavour}:{distribution}', err=True)
     except KeyError:
         data[timestamp] = image_data
+        click.echo(f'Creating new image index data for {flavour}:{distribution}', err=True)
 
-    update_index_file(data, s3, apt_repo, index_key)
+    write_index_file(data, s3, apt_repo, index_key)
+
+    unlock_index_file(s3, apt_repo, index_key)
 
     # Invalidate image index cache
     if 'cloudfront_distribution_id' in common_config:
