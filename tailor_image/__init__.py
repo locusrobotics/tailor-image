@@ -63,34 +63,41 @@ def tag_file(client, bucket, key, tag_key, tag_value):
     client.put_object_tagging(Bucket=bucket, Key=key, Tagging=tagset)
 
 
-def wait_for_index(client, bucket, key):
+def wait_for_index(client, bucket, key, timeout=600):
     # Wait until file is not locked to avoid race condition
+    click.echo(f"Waiting for {bucket}/{key} to be unlocked...")
     now = datetime.now()
     start_time = now
     random.seed(int(now.strftime("%Y%m%d%H%M%S")))
-    timeout = 300 + random.random() * 300  # random timeout from 5 to 10 minutes
+    timeout = (timeout / 2) + random.random() * (timeout / 2)  # random timeout from timeout/2 to timeout seconds
     stop_checking = False
     while True:
         if stop_checking:
+            lock_index_file(client, bucket, key)
             break
         try:
-            time.sleep(random.random() * 5.0)
-            tags = client.get_object_tagging(Bucket=bucket, Key=key)
-            for tag in tags["TagSet"]:
+            tags = client.get_object_tagging(Bucket=bucket, Key=key)["TagSet"]
+
+            # If the object doesn't have any tags, create and get lock
+            if not any(tag.get("Key") == "Lock" for tag in tags):
+                click.echo("fNo Lock tag found for {bucket}/{key}, creating tag and getting lock")
+                stop_checking = True
+
+            # If the object has the Key tag and is set to true, wait until it's set to False or timeout
+            if any(tag.get("Key") == "Lock" and tag.get("Value") == "True" for tag in tags):
+                # If timeout is reached, allow writing to index
                 time_delta = datetime.now() - start_time
-                if tag["Key"] == "Lock" and tag["Value"] == "False":
-                    lock_index_file(client, bucket, key)
-                    break
-                if tag["Key"] == "Lock" and tag["Value"] == "True":
-                    # If timeout is reached, allow writing to index
-                    time_delta = datetime.now() - start_time
-                    if time_delta.total_seconds() >= timeout:
-                        stop_checking = True
-                        break
-                    time.sleep(2.0)
+                if time_delta.total_seconds() >= timeout:
+                    click.echo(f"Timeout reached for {bucket}/{key}, getting lock")
+                    stop_checking = True
+                else:
+                    click.echo(
+                        f"Index {bucket}/{key} locked, timeout in {int(timeout - time_delta.total_seconds())}s"
+                    )
+                time.sleep(random.random() * 10.0)
             else:
-                continue
-            break
+                click.echo(f"Index for {bucket}/{key} unlocked, getting lock")
+                stop_checking = True
         except botocore.exceptions.ClientError as error:
             if error.response["Error"]["Code"] in ["NoSuchKey", "MethodNotAllowed"]:
                 # Index file doesn't exist, create an empty one and set it to locked
