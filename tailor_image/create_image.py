@@ -19,8 +19,10 @@ from . import (
     read_index_file,
     run_command,
     source_file,
-    update_index_file,
-    invalidate_file_cloudfront
+    invalidate_file_cloudfront,
+    unlock_index_file,
+    write_index_file,
+    wait_for_index,
 )
 
 
@@ -223,6 +225,9 @@ def update_image_index(release_label, apt_repo, common_config, image_name):
         }
     }
 
+    # Wait until index file is unlocked and lock it while we update it
+    wait_for_index(s3, apt_repo, index_key)
+
     data = read_index_file(s3, apt_repo, index_key)
 
     try:
@@ -232,7 +237,9 @@ def update_image_index(release_label, apt_repo, common_config, image_name):
         data[timestamp] = image_data
         click.echo(f'Creating new image index data for {flavour}:{distribution}', err=True)
 
-    update_index_file(data, s3, apt_repo, index_key)
+    write_index_file(data, s3, apt_repo, index_key)
+
+    unlock_index_file(s3, apt_repo, index_key)
 
     # Invalidate image index cache
     if 'cloudfront_distribution_id' in common_config:
