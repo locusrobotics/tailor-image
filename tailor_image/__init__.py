@@ -153,6 +153,21 @@ def list_s3_images(client, bucket, prefix) -> List[ImageEntry]:
     return files
 
 
+def list_s3_directories(client, bucket, prefix) -> List[str]:
+    """List direct child directories under an S3 prefix."""
+    directories = []
+    normalized_prefix = prefix.rstrip("/") + "/"
+    paginator = client.get_paginator("list_objects_v2")
+
+    for page in paginator.paginate(Bucket=bucket, Prefix=normalized_prefix, Delimiter="/"):
+        for entry in page.get("CommonPrefixes", []):
+            full_prefix = entry["Prefix"]
+            name = full_prefix[len(normalized_prefix):].strip("/")
+            directories.append(name)
+
+    return directories
+
+
 def delete_s3_images(images: Iterable[ImageEntry], bucket: str, prefix: str):
     """
     Delete files from s3, including all versions if versioning is enabled.
@@ -172,6 +187,26 @@ def delete_s3_images(images: Iterable[ImageEntry], bucket: str, prefix: str):
 
         # Also delete the current object (in case versioning is not enabled)
         bucket.Object(key).delete()
+
+
+def delete_s3_change_log(change_folder: Iterable[str], bucket: str):
+    """
+    Delete all changes logs from s3, including all versions if versioning is enabled.
+    """
+    s3_resource = boto3.resource("s3")
+    bucket_obj = s3_resource.Bucket(bucket)
+
+    for prefix in sorted(set(change_folder)):
+        click.echo(f"Deleting changes logs under {prefix}")
+
+        # Delete all versions if versioning is enabled
+        object_versions = bucket_obj.object_versions.filter(Prefix=prefix)
+        for version in object_versions:
+            version.delete()
+
+        # Also delete current objects (in case versioning is not enabled)
+        for obj in bucket_obj.objects.filter(Prefix=prefix):
+            obj.delete()
 
 
 def read_index_file(client, bucket, index_key):

@@ -219,7 +219,7 @@ pipeline {
       }
     }
 
-    stage("Cleanup images") {
+    stage("Cleanup images and logs from S3") {
       agent any
       steps {
         script {
@@ -230,12 +230,13 @@ pipeline {
             }
             parent_image.inside() {
               unstash(name: 'rosdistro')
-              sh("cleanup_images " +
+              sh("s3_cleanup " +
                 "--release-label ${params.release_label} " +
                 "--apt-repo ${params.apt_repo - 's3://'} " +
                 "--organization ${organization} " +
                 "${params.days_to_keep ? '--days-to-keep ' + params.days_to_keep : ''} " +
-                "${params.num_to_keep ? '--num-to-keep ' + params.num_to_keep : ''}"
+                "${params.num_to_keep ? '--num-to-keep ' + params.num_to_keep : ''} " +
+                "--dry-run"
               )
             }
           } finally {

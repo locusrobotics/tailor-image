@@ -13,3 +13,11 @@ Long term all sorts of images...
  - machine installation
  - developer use
  - automated test environments
+
+## Cleanup behavior
+
+The `s3_cleanup` command applies retention to two S3 areas under a release label:
+
+- image artifacts under `{release_label}/images/`
+- change logs under `{release_label}/changes/{YYYYMMDD.HHMMSS}/`
+
