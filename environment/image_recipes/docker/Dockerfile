@@ -8,7 +8,6 @@ ARG BUNDLE_FLAVOUR
 ARG BUNDLE_VERSION
 ARG OS_NAME=ubuntu
 ARG OS_VERSION=jammy
-ARG AWS_ACCESS_KEY_ID
 ARG USERNAME
 ARG APT_REPO
 ARG ENTRYPOINT_PATH
@@ -18,8 +17,7 @@ LABEL tailor=docker_image
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=en_US.UTF-8 \
     PYTHONUNBUFFERED=1 \
-    BUNDLE_ROOT=/opt/${ORGANIZATION}/${BUNDLE_VERSION}/${BUNDLE_FLAVOUR} \
-    AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+    BUNDLE_ROOT=/opt/${ORGANIZATION}/${BUNDLE_VERSION}/${BUNDLE_FLAVOUR}
 
 # Install basics
 RUN apt-get update && \
@@ -56,6 +54,13 @@ RUN --mount=type=secret,id=creds \
 
 FROM base AS bundle
 
+ARG ORGANIZATION
+ARG BUNDLE_FLAVOUR
+ARG BUNDLE_VERSION
+ARG OS_VERSION=jammy
+ARG APT_REPO
+
+
 # Add package mirror
 RUN apt-get update && apt-get install --no-install-recommends -y apt-transport-https apt-transport-s3 && \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 142D5F1683E1528B && \
@@ -63,7 +68,9 @@ RUN apt-get update && apt-get install --no-install-recommends -y apt-transport-h
     echo "deb [arch=amd64] ${APT_REPO}/${BUNDLE_VERSION}/ubuntu ${OS_VERSION}-mirror ${OS_VERSION}" >> /etc/apt/sources.list.d/tailor.list
 
 RUN --mount=type=secret,id=aws_secret \
+    --mount=type=secret,id=aws_key_id \
     AWS_SECRET_ACCESS_KEY="$(cat /run/secrets/aws_secret)" && \
+    AWS_ACCESS_KEY_ID="$(cat /run/secrets/aws_key_id)" && \
     echo "AccessKeyId = $AWS_ACCESS_KEY_ID" | tee /etc/apt/s3auth.conf && \
     echo "SecretAccessKey = $AWS_SECRET_ACCESS_KEY" | tee -a /etc/apt/s3auth.conf && \
     echo "Token = ''" | tee -a /etc/apt/s3auth.conf && \
@@ -78,6 +85,9 @@ RUN apt-get update && \
     rm -f /etc/apt/sources.list.d/tailor.list
 
 FROM bundle AS runtime
+
+ARG USERNAME
+ARG ENTRYPOINT_PATH
 
 COPY ${ENTRYPOINT_PATH} /bin/entrypoint.sh
 

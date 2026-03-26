@@ -72,24 +72,24 @@ def create_image(name: str, distribution: str, apt_repo: str, release_label: str
     if build_type == 'docker':
         image_name = f'tailor-image-{name}-{distribution}-{release_label}'
         docker_registry_data = docker_registry.replace('https://', '').split('/')
-        entrypoint_path ='/tailor-image/environment/image_recipes/docker/entrypoint.sh'
         ecr_server = docker_registry_data[0]
         ecr_repository = docker_registry_data[1]
         image_base_tag = f'{ecr_server}/{ecr_repository}:{image_name}-base'
         image_tag = f'{ecr_server}/{ecr_repository}:{image_name}'
-        dockerfile_path=f'/tailor-image/environment/image_recipes/{build_type}/Dockerfile'
-        PASSWORD=recipe[name]["password"]
+        build_env = os.environ.copy()
+        build_env["PASSWORD"] = recipe[name]["password"]
+        build_env["DOCKER_BUILDKIT"] = "1"
         build_args = [
             '--build-arg', f'OS_VERSION={distribution}',
             '--build-arg', f'ORGANIZATION={organization}',
             '--build-arg', f'BUNDLE_FLAVOUR={flavour}',
             '--build-arg', f'BUNDLE_VERSION={release_label}',
-            '--build-arg', f'AWS_ACCESS_KEY_ID={os.environ["AWS_ACCESS_KEY_ID"]}',
-            '--build-arg', f'APT_REPO={common_config['apt_repo']}',
-            '--build-arg', f'USERNAME={recipe[name]['username']}',
-            '--build-arg', f'ENTRYPOINT_PATH={entrypoint_path}',
+            '--build-arg', f'APT_REPO={common_config["apt_repo"]}',
+            '--build-arg', f'USERNAME={recipe[name]["username"]}',
+            '--build-arg', f'ENTRYPOINT_PATH=entrypoint.sh',
+            '--secret', f'id=aws_key_id,env=AWS_ACCESS_KEY_ID',
             '--secret','id=aws_secret,env=AWS_SECRET_ACCESS_KEY',
-            '--secret', f'id=creds,env={PASSWORD}'
+            '--secret', f'id=creds,env=PASSWORD'
         ]
 
         click.echo(f'Building {build_type} image {image_base_tag}', err=True)
@@ -101,10 +101,10 @@ def create_image(name: str, distribution: str, apt_repo: str, release_label: str
         docker_build_cmd = (
             ['docker', 'build','--progress=plain','--target', 'runtime']
             + build_args
-            + ['-f', dockerfile_path, '-t', image_base_tag]
-            + ['.']
+            + ['-t', image_base_tag]
+            + [f'/tailor-image/environment/image_recipes/{build_type}/']
         )
-        run_command(docker_build_cmd)
+        run_command(docker_build_cmd, env=build_env)
 
         # Configure docker with ansible
         click.echo(f'Configure {build_type} image {image_tag} with: {provision_file}', err=True)
@@ -114,7 +114,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_label: str
         ansible_cmd = [
             'bash', '-lc',
             f'source "{os.environ["BUNDLE_ROOT"]}/{distro}/setup.bash" && '
-            f'{recipe[name]['ansible_command']} "{provision_file_path}" '
+            f'{recipe[name]["ansible_command"]} "{provision_file_path}" '
             f'-i "{container_name}", '
             '-e ansible_connection=docker '
             f'-e ansible_host="{container_name}" '
@@ -122,18 +122,17 @@ def create_image(name: str, distribution: str, apt_repo: str, release_label: str
             f'-e bundle_version="{release_label}" '
             f'-e bundle_flavour="{flavour}" '
             f'-e os_version="{distribution}" '
-            f'{recipe[name]['extra_arguments_ansible']} '
+            f'{recipe[name]["extra_arguments_ansible"]} '
             '--vault-password-file=/home/tailor/.vault_pass.txt '
         ]
 
         # Run ansible command inside ansible package
-        os.chdir(f'{os.environ["BUNDLE_ROOT"]}/{distro}/share/{recipe[name]['package']}')
+        os.chdir(f'{os.environ["BUNDLE_ROOT"]}/{distro}/share/{recipe[name]["package"]}')
         run_command(ansible_cmd)
-        run_command(['docker', 'commit', container_name, image_tag])
-
+        run_command(['docker', 'commit', '--change', 'CMD ["bash"]', container_name, image_tag])
         if publish:
             click.echo('Docker login...', err=True)
-            login_command = f"aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin {ecr_server}"
+            login_command = f"aws ecr get-login-password --region {common_config['apt_region']} | docker login --username AWS --password-stdin {ecr_server}"
             run_command([login_command], shell=True)
             click.echo('Push docker image', err=True)
             run_command(['docker', 'push', image_tag])
