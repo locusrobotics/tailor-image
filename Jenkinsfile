@@ -235,8 +235,7 @@ pipeline {
                 "--apt-repo ${params.apt_repo - 's3://'} " +
                 "--organization ${organization} " +
                 "${params.days_to_keep ? '--days-to-keep ' + params.days_to_keep : ''} " +
-                "${params.num_to_keep ? '--num-to-keep ' + params.num_to_keep : ''} " +
-                "--dry-run"
+                "${params.num_to_keep ? '--num-to-keep ' + params.num_to_keep : ''} "
               )
             }
           } finally {
