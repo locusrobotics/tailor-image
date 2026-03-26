@@ -191,13 +191,13 @@ def delete_s3_images(images: Iterable[ImageEntry], bucket: str, prefix: str):
 
 def delete_s3_change_log(change_folder: Iterable[str], bucket: str):
     """
-    Delete all changes logs from s3, including all versions if versioning is enabled.
+    Delete all change logs from s3, including all versions if versioning is enabled.
     """
     s3_resource = boto3.resource("s3")
     bucket_obj = s3_resource.Bucket(bucket)
 
     for prefix in sorted(set(change_folder)):
-        click.echo(f"Deleting changes logs under {prefix}")
+        click.echo(f"Deleting change logs under {prefix}")
 
         # Delete all versions if versioning is enabled
         object_versions = bucket_obj.object_versions.filter(Prefix=prefix)
