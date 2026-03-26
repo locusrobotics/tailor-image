@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-import json
 import os
 import pathlib
 import sys
@@ -20,8 +19,10 @@ from . import (
     read_index_file,
     run_command,
     source_file,
-    update_index_file,
-    invalidate_file_cloudfront
+    invalidate_file_cloudfront,
+    unlock_index_file,
+    write_index_file,
+    wait_for_index,
 )
 
 
@@ -72,26 +73,77 @@ def create_image(name: str, distribution: str, apt_repo: str, release_label: str
     if build_type == 'docker':
         image_name = f'tailor-image-{name}-{distribution}-{release_label}'
         docker_registry_data = docker_registry.replace('https://', '').split('/')
-        entrypoint_path = '/tailor-image/environment/image_recipes/docker/entrypoint.sh'
         ecr_server = docker_registry_data[0]
         ecr_repository = docker_registry_data[1]
-        extra_vars = [
-            '-var', f'type={build_type}',
-            '-var', f'bundle_flavour={flavour}',
-            '-var', f'image_name={image_name}',
-            '-var', f'ecr_server={ecr_server}',
-            '-var', f'os_version={distribution}',
-            '-var', f'ecr_repository={ecr_repository}',
-            '-var', f'aws_access_key={os.environ["AWS_ACCESS_KEY_ID"]}',
-            '-var', f'aws_secret_key={os.environ["AWS_SECRET_ACCESS_KEY"]}',
-            '-var', f'entrypoint_path={entrypoint_path}'
+        image_base_tag = f'{ecr_server}/{ecr_repository}:{image_name}-base'
+        image_tag = f'{ecr_server}/{ecr_repository}:{image_name}'
+        build_env = os.environ.copy()
+        build_env["PASSWORD"] = recipe[name]["password"]
+        build_env["DOCKER_BUILDKIT"] = "1"
+        build_args = [
+            '--build-arg', f'OS_VERSION={distribution}',
+            '--build-arg', f'ORGANIZATION={organization}',
+            '--build-arg', f'BUNDLE_FLAVOUR={flavour}',
+            '--build-arg', f'BUNDLE_VERSION={release_label}',
+            '--build-arg', f'APT_REPO={common_config["apt_repo"]}',
+            '--build-arg', f'USERNAME={recipe[name]["username"]}',
+            '--build-arg', f'ENTRYPOINT_PATH=entrypoint.sh',
+            '--secret', f'id=aws_key_id,env=AWS_ACCESS_KEY_ID',
+            '--secret','id=aws_secret,env=AWS_SECRET_ACCESS_KEY',
+            '--secret', f'id=creds,env=PASSWORD'
         ]
 
-        if not publish:
-            extra_vars += ['-except', 'publish']
+        click.echo(f'Building {build_type} image {image_base_tag}', err=True)
+        click.echo('Preparing build context...', err=True)
 
-        # Make sure we remove old containers before creting new ones
-        run_command(['docker', 'rm', '-f', 'default'], check=False)
+        # Run docker build command
+        container_name = 'default'
+        run_command(['docker', 'rm', '-f', container_name], check=False)
+        docker_build_cmd = (
+            ['docker', 'build','--progress=plain','--target', 'runtime']
+            + build_args
+            + ['-t', image_base_tag]
+            + [f'/tailor-image/environment/image_recipes/{build_type}/']
+        )
+        run_command(docker_build_cmd, env=build_env)
+
+        # Configure docker with ansible
+        click.echo(f'Configure {build_type} image {image_tag} with: {provision_file}', err=True)
+        run_command([
+            'docker', 'run', '-d', '--name', container_name, image_base_tag, 'sleep', 'infinity'
+        ])
+        ansible_cmd = [
+            'bash', '-lc',
+            f'source "{os.environ["BUNDLE_ROOT"]}/{distro}/setup.bash" && '
+            f'{recipe[name]["ansible_command"]} "{provision_file_path}" '
+            f'-i "{container_name}", '
+            '-e ansible_connection=docker '
+            f'-e ansible_host="{container_name}" '
+            f'-e organization="{organization}" '
+            f'-e bundle_version="{release_label}" '
+            f'-e bundle_flavour="{flavour}" '
+            f'-e os_version="{distribution}" '
+            f'{recipe[name]["extra_arguments_ansible"]} '
+            '--vault-password-file=/home/tailor/.vault_pass.txt '
+        ]
+
+        # Run ansible command inside ansible package
+        os.chdir(f'{os.environ["BUNDLE_ROOT"]}/{distro}/share/{recipe[name]["package"]}')
+        run_command(ansible_cmd)
+        run_command(['docker', 'commit', '--change', 'CMD ["bash"]', container_name, image_tag])
+        if publish:
+            click.echo('Docker login...', err=True)
+            login_command = f"aws ecr get-login-password --region {common_config['apt_region']} | docker login --username AWS --password-stdin {ecr_server}"
+            run_command([login_command], shell=True)
+            click.echo('Push docker image', err=True)
+            run_command(['docker', 'push', image_tag])
+            logout_cmd = f"docker logout {ecr_server}"
+            run_command([logout_cmd], shell=True)
+
+        run_command(['rm', '-rf', 'build-context'])
+        run_command(['docker', 'rm', '-f', container_name], check=False)
+        click.echo(f'Image {build_type} finished building', err=True)
+        return 0
 
     elif build_type in ['bare_metal', 'lxd'] and publish:
         # Get information about base image
@@ -180,6 +232,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_label: str
     run_command(command, env=env, cwd='/tmp')
 
     if build_type in ['bare_metal', 'lxd'] and publish:
+        click.echo(f'Updating index for {image_name} image', err=True)
         update_image_index(release_label, apt_repo, common_config, image_name)
 
 
@@ -203,18 +256,12 @@ def update_image_index(release_label, apt_repo, common_config, image_name):
     """
     s3 = boto3.client('s3')
 
-    # Helper methods
-    json.load_s3 = lambda f: json.load(s3.get_object(Bucket=apt_repo, Key=f)['Body'])
-    json.dump_s3 = lambda obj, f: s3.put_object(Bucket=apt_repo,
-                                                Key=f,
-                                                Body=json.dumps(obj, indent=2))
-
     index_key = release_label + '/images/index'
 
     _, flavour, distribution, release_label, timestamp = image_name.split('_')
 
     # Read checksum from generated file
-    with open(f'/tmp/{image_name}', 'r') as checksum_file:
+    with open(f'/tmp/{image_name}', 'r', encoding='utf-8') as checksum_file:
         checksum = checksum_file.read().replace('\n', '').split(' ')[0]
     os.remove(f'/tmp/{image_name}')
 
@@ -229,14 +276,21 @@ def update_image_index(release_label, apt_repo, common_config, image_name):
         }
     }
 
+    # Wait until index file is unlocked and lock it while we update it
+    wait_for_index(s3, apt_repo, index_key)
+
     data = read_index_file(s3, apt_repo, index_key)
 
     try:
         data[timestamp] = merge_dicts(data[timestamp], image_data)
+        click.echo(f'Merging image index data for {flavour}:{distribution}', err=True)
     except KeyError:
         data[timestamp] = image_data
+        click.echo(f'Creating new image index data for {flavour}:{distribution}', err=True)
 
-    update_index_file(data, s3, apt_repo, index_key)
+    write_index_file(data, s3, apt_repo, index_key)
+
+    unlock_index_file(s3, apt_repo, index_key)
 
     # Invalidate image index cache
     if 'cloudfront_distribution_id' in common_config:

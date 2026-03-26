@@ -18,7 +18,9 @@ from . import (
     delete_s3_images,
     delete_s3_change_log,
     read_index_file,
-    update_index_file,
+    unlock_index_file,
+    wait_for_index,
+    write_index_file,
 )
 
 
@@ -182,16 +184,24 @@ def cleanup_images(
 
     # Get index file with image versions
     index_key = release_label + "/images/index"
-    image_index = read_index_file(s3_client, apt_repo, index_key)
-    image_index = cleanup_index(image_index, keep_images)
 
-    if not dry_run:
-        click.echo("Updating index file")
-        update_index_file(image_index, s3_client, apt_repo, index_key)
-    else:
-        click.echo("[DRY RUN] New version in index file:")
-        for version in image_index.keys():
-            click.echo(version)
+    # Wait until index file is unlocked and lock it while we update it
+    wait_for_index(s3_client, apt_repo, index_key)
+
+    try:
+        image_index = read_index_file(s3_client, apt_repo, index_key)
+        image_index = cleanup_index(image_index, keep_images)
+
+        if not dry_run:
+            click.echo("Updating index file")
+            write_index_file(image_index, s3_client, apt_repo, index_key)
+        else:
+            click.echo("[DRY RUN] New version in index file:")
+            for version in image_index.keys():
+                click.echo(version)
+
+    finally:
+        unlock_index_file(s3_client, apt_repo, index_key)
 
 
 def main():

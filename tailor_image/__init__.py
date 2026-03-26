@@ -60,44 +60,47 @@ def source_file(path):
 
 def tag_file(client, bucket, key, tag_key, tag_value):
     tagset = {"TagSet": [{"Key": tag_key, "Value": tag_value}]}
-    click.echo(f"Setting Lock on {key} to: {tag_value}")
     client.put_object_tagging(Bucket=bucket, Key=key, Tagging=tagset)
 
 
-def wait_for_index(client, bucket, key):
+def wait_for_index(client, bucket, key, timeout=600):
     # Wait until file is not locked to avoid race condition
+    click.echo(f"Waiting for {bucket}/{key} to be unlocked...")
     now = datetime.now()
     start_time = now
     random.seed(int(now.strftime("%Y%m%d%H%M%S")))
-    timeout = 300 + random.random() * 300  # random timeout from 5 to 10 minutes
+    timeout = (timeout / 2) + random.random() * (timeout / 2)  # random timeout from timeout/2 to timeout seconds
     stop_checking = False
     while True:
         if stop_checking:
+            lock_index_file(client, bucket, key)
             break
         try:
-            time.sleep(random.random() * 5.0)
-            tags = client.get_object_tagging(Bucket=bucket, Key=key)
-            for tag in tags["TagSet"]:
+            tags = client.get_object_tagging(Bucket=bucket, Key=key)["TagSet"]
+
+            # If the object doesn't have any tags, create and get lock
+            if not any(tag.get("Key") == "Lock" for tag in tags):
+                click.echo("fNo Lock tag found for {bucket}/{key}, creating tag and getting lock")
+                stop_checking = True
+
+            # If the object has the Key tag and is set to true, wait until it's set to False or timeout
+            if any(tag.get("Key") == "Lock" and tag.get("Value") == "True" for tag in tags):
+                # If timeout is reached, allow writing to index
                 time_delta = datetime.now() - start_time
-                click.echo(
-                    f'Checking tag: {tag["Key"]}:{tag["Value"]}'
-                )
-                if tag["Key"] == "Lock" and tag["Value"] == "False":
-                    tag_file(client, bucket, key, "Lock", "True")
-                    break
-                if tag["Key"] == "Lock" and tag["Value"] == "True":
-                    # If timeout is reached, allow writing to index
-                    time_delta = datetime.now() - start_time
-                    if time_delta.total_seconds() >= timeout:
-                        stop_checking = True
-                        break
-                    time.sleep(2.0)
+                if time_delta.total_seconds() >= timeout:
+                    click.echo(f"Timeout reached for {bucket}/{key}, getting lock")
+                    stop_checking = True
+                else:
+                    click.echo(
+                        f"Index {bucket}/{key} locked, timeout in {int(timeout - time_delta.total_seconds())}s"
+                    )
+                time.sleep(random.random() * 10.0)
             else:
-                continue
-            break
+                click.echo(f"Index for {bucket}/{key} unlocked, getting lock")
+                stop_checking = True
         except botocore.exceptions.ClientError as error:
             if error.response["Error"]["Code"] in ["NoSuchKey", "MethodNotAllowed"]:
-                # Index file doesn't exists, create an empty one
+                # Index file doesn't exist, create an empty one and set it to locked
                 click.echo(f"{bucket}/{key} doesn't exist, creating...")
                 client.put_object(Bucket=bucket, Key=key, Body="{}", Tagging="Lock=True")
                 break
@@ -189,6 +192,16 @@ def delete_s3_images(images: Iterable[ImageEntry], bucket: str, prefix: str):
         bucket.Object(key).delete()
 
 
+def lock_index_file(client, bucket, index_key):
+    tag_file(client, bucket, index_key, "Lock", "True")
+    click.echo(f"Locking index file: {index_key}")
+
+
+def unlock_index_file(client, bucket, index_key):
+    tag_file(client, bucket, index_key, "Lock", "False")
+    click.echo(f"Unlocking index file: {index_key}")
+
+
 def delete_s3_change_log(change_folder: Iterable[str], bucket: str):
     """
     Delete all change logs from s3, including all versions if versioning is enabled.
@@ -213,25 +226,11 @@ def read_index_file(client, bucket, index_key):
     # Helper method
     json.load_s3 = lambda f: json.load(client.get_object(Bucket=bucket, Key=f)["Body"])
 
-    data = {}
-    try:
-        # Wait for file to be ready to write
-        wait_for_index(client, bucket, index_key)
-        data = json.load_s3(index_key)
-        tag_file(client, bucket, index_key, "Lock", "False")
-    except botocore.exceptions.ClientError as error:
-        # If file doesn't exists, we'll create a new one
-        if error.response["Error"]["Code"] == "NoSuchKey":
-            click.echo("Index file doesn't exist, creating a new one")
-
-    return data
+    return json.load_s3(index_key)
 
 
-def update_index_file(data, client, bucket, index_key):
-    """Updates image index file."""
+def write_index_file(data, client, bucket, index_key):
+    """Write data to image index file."""
     json.dump_s3 = lambda obj, f: client.put_object(Bucket=bucket, Key=f, Body=json.dumps(obj, indent=2))
 
-    # Write data to index file
-    wait_for_index(client, bucket, index_key)
     json.dump_s3(data, index_key)
-    tag_file(client, bucket, index_key, "Lock", "False")
