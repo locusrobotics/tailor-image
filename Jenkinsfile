@@ -143,7 +143,9 @@ pipeline {
       agent none
       steps {
         script {
-          def jobs = [:]
+          def blocking_jobs = [:]
+          def non_blocking_jobs = [:]
+
           images_config.each { image, config ->
             def tmp_distributions = distributions.clone()
 
@@ -153,12 +155,9 @@ pipeline {
             }
 
             // If `bundle_flavour` not defined, default to testing_flavour
-            def bundle_flavour = testing_flavour
-            if (config.containsKey('bundle_flavour')) {
-              bundle_flavour = config['bundle_flavour']
-            }
+            def bundle_flavour = config.get('bundle_flavour', testing_flavour)
 
-            jobs << tmp_distributions.collectEntries { distribution ->
+            def job_entries = tmp_distributions.collectEntries { distribution ->
               ["${image}-${distribution}", { node {
                 try {
                   retry(params.retries as Integer) {
@@ -206,8 +205,32 @@ pipeline {
                 }
               }}]
             }
+
+            // Images marked `non_blocking: true` are fired off without blocking subsequent stages
+            if (config.get('non_blocking', false)) {
+              non_blocking_jobs << job_entries
+            } else {
+              blocking_jobs << job_entries
+            }
           }
-          parallel(jobs)
+
+          // Non-blocking images are launched in the background; failures mark the build UNSTABLE
+          if (non_blocking_jobs) {
+            def capturedJobs = non_blocking_jobs
+            Thread.start {
+              try {
+                parallel(capturedJobs)
+              } catch (e) {
+                echo("Non-blocking image build(s) failed: ${e}")
+                currentBuild.result = 'UNSTABLE'
+              }
+            }
+          }
+
+          // Wait only for blocking images before continuing the pipeline
+          if (blocking_jobs) {
+            parallel(blocking_jobs)
+          }
         }
       }
       post {
