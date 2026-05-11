@@ -32,6 +32,7 @@ pipeline {
     string(name: 'apt_region', defaultValue: 'us-east-1')
     booleanParam(name: 'deploy', defaultValue: false)
     booleanParam(name: 'invalidate_cache', defaultValue: false)
+    booleanParam(name: 'per_package_build', defaultValue: false)
     string(name: 'apt_refresh_key')
   }
 
@@ -88,6 +89,9 @@ pipeline {
 
           stash(name: 'source', includes: 'tailor-image/**')
           def parent_image_label = parentImage(params.release_label, params.docker_registry)
+          def bundle_root = params.per_package_build ?
+            "/opt/${organization}/${params.release_label}" :
+            "/opt/${organization}/${params.release_label}/${build_flavour}"
           def parent_image = docker.image(parent_image_label)
           withEnv(['DOCKER_BUILDKIT=1']) {
             try {
@@ -108,6 +112,7 @@ pipeline {
                   "--build-arg RELEASE_LABEL=${params.release_label} " +
                   "--build-arg FLAVOUR=${build_flavour} " +
                   "--build-arg ORGANIZATION=${organization} " +
+                  "--build-arg BUNDLE_ROOT=${bundle_root} " +
                   "--build-arg AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID " +
                   "--build-arg AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY " +
                   "--build-arg ANSIBLE_VAULT_PASS=$ANSIBLE_VAULT_PASS " +
