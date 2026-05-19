@@ -123,6 +123,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_label: str
             f'-e bundle_version="{release_label}" '
             f'-e bundle_flavour="{flavour}" '
             f'-e os_version="{distribution}" '
+            f'-e release_flavour="{name}" '
             f'{recipe[name]["extra_arguments_ansible"]} '
             '--vault-password-file=/home/tailor/.vault_pass.txt '
         ]
@@ -188,7 +189,8 @@ def create_image(name: str, distribution: str, apt_repo: str, release_label: str
             '-var', f's3_bucket={apt_repo}',
             '-var', f'iso_image={base_image_local_path}',
             '-var', f'distribution={distribution}',
-            '-var', f'disk_size={disk_size}'
+            '-var', f'disk_size={disk_size}',
+            '-var', f'release_flavour={name}'
         ]
 
         # Make sure to clean old image builds
@@ -214,6 +216,7 @@ def create_image(name: str, distribution: str, apt_repo: str, release_label: str
             '-var', f'source_ami_id={source_ami_id}',
             '-var', f'distribution={distribution}',
             '-var', f'release_label={release_label}',
+            '-var', f'release_flavour={name}',
             '-var', f'aws_access_key={os.environ["AWS_ACCESS_KEY_ID"]}',
             '-var', f'aws_secret_key={os.environ["AWS_SECRET_ACCESS_KEY"]}'
         ]
