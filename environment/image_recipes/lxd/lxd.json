@@ -82,6 +82,7 @@
         "-e organization={{user `organization`}}",
         "-e bundle_version={{user `bundle_version`}}",
         "-e image_name={{user `image_name`}}",
+        "-e release_flavour={{ user `release_flavour`}}",
         "--inventory={{user `inventory`}}"
       ]
     },
