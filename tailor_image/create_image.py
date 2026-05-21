@@ -64,7 +64,8 @@ def create_image(name: str, distribution: str, apt_repo: str, release_label: str
 
     optional_vars = []
     optional_var_names = ['username', 'password', 'extra_arguments_ansible',
-                          'ansible_command', 'description', 'disk_size', 'group']
+                          'ansible_command', 'description', 'disk_size', 'group',
+                          'preserve_resolv_conf']
 
     for var in optional_var_names:
         if var in recipe[name]:
