@@ -93,7 +93,7 @@
       "inline": [
         "echo 'Reconfigure openssh server and handle resolv.conf'",
         "dpkg-reconfigure openssh-server",
-        "if [ \"$PRESERVE_RESOLV_CONF\" = \"true\" ]; then rm -f /etc/resolv.conf.old; else mv /etc/resolv.conf.old /etc/resolv.conf; fi",
+        "if [ \"$(echo $PRESERVE_RESOLV_CONF | tr '[:upper:]' '[:lower:]')\" = \"true\" ]; then rm -f /etc/resolv.conf.old; else mv /etc/resolv.conf.old /etc/resolv.conf; fi",
 
         "echo 'Remove machine-id to ensure we get a unique one for each machine'",
         "rm -f /etc/machine-id /var/lib/dbus/machine-id",
