@@ -17,7 +17,7 @@ LABEL tailor=docker_image
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=en_US.UTF-8 \
     PYTHONUNBUFFERED=1 \
-    BUNDLE_ROOT=/opt/${ORGANIZATION}/${BUNDLE_VERSION}/${BUNDLE_FLAVOUR}
+    BUNDLE_ROOT=${BUNDLE_ROOT}
 
 # Install basics
 RUN apt-get update && \

@@ -85,12 +85,13 @@ def create_image(name: str, distribution: str, apt_repo: str, release_label: str
             '--build-arg', f'ORGANIZATION={organization}',
             '--build-arg', f'BUNDLE_FLAVOUR={flavour}',
             '--build-arg', f'BUNDLE_VERSION={release_label}',
+            '--build-arg', f'BUNDLE_ROOT={os.environ["BUNDLE_ROOT"]}',
             '--build-arg', f'APT_REPO={common_config["apt_repo"]}',
             '--build-arg', f'USERNAME={recipe[name]["username"]}',
-            '--build-arg', f'ENTRYPOINT_PATH=entrypoint.sh',
-            '--secret', f'id=aws_key_id,env=AWS_ACCESS_KEY_ID',
+            '--build-arg', 'ENTRYPOINT_PATH=entrypoint.sh',
+            '--secret', 'id=aws_key_id,env=AWS_ACCESS_KEY_ID',
             '--secret','id=aws_secret,env=AWS_SECRET_ACCESS_KEY',
-            '--secret', f'id=creds,env=PASSWORD'
+            '--secret', 'id=creds,env=PASSWORD'
         ]
 
         click.echo(f'Building {build_type} image {image_base_tag}', err=True)
