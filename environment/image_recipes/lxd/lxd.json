@@ -17,7 +17,8 @@
 
     "s3_bucket": "tailor-artifacts",
 
-    "iso_image": ""
+    "iso_image": "",
+    "preserve_resolv_conf": "false"
   },
 
   "builders": [
@@ -88,10 +89,11 @@
 
     {
       "type": "shell",
+      "environment_vars": ["PRESERVE_RESOLV_CONF={{user `preserve_resolv_conf`}}"],
       "inline": [
-        "echo 'Reconfigure openssh server and restore resolv.conf'",
+        "echo 'Reconfigure openssh server and handle resolv.conf'",
         "dpkg-reconfigure openssh-server",
-        "mv /etc/resolv.conf.old /etc/resolv.conf",
+        "if [ \"$(echo $PRESERVE_RESOLV_CONF | tr '[:upper:]' '[:lower:]')\" = \"true\" ]; then rm -f /etc/resolv.conf.old; else mv /etc/resolv.conf.old /etc/resolv.conf; fi",
 
         "echo 'Remove machine-id to ensure we get a unique one for each machine'",
         "rm -f /etc/machine-id /var/lib/dbus/machine-id",
