@@ -16,6 +16,46 @@ def build_flavour = null
 
 def FAILED_STAGE  = ''
 
+def uploadSuccessfulBuildParams = {
+  def timestampSuffix = params.timestamp?.trim() ? params.timestamp : env.BUILD_NUMBER
+  def latestFile = 'tailor-image-successful-params.yaml'
+  def historyFile = "tailor-image-successful-params-${timestampSuffix}.yaml"
+  def payload = [
+    pipeline: 'tailor-image',
+    job_name: env.JOB_NAME,
+    build_number: env.BUILD_NUMBER,
+    build_url: env.BUILD_URL,
+    release_label: params.release_label,
+    created_at_utc: new Date().format("yyyy-MM-dd'T'HH:mm:ss'Z'", TimeZone.getTimeZone('UTC')),
+    parameters: params.collectEntries { k, v -> [(k): v] }
+  ]
+
+  writeYaml(file: latestFile, data: payload)
+  writeYaml(file: historyFile, data: payload)
+  archiveArtifacts(artifacts: "${latestFile}, ${historyFile}", allowEmptyArchive: false)
+
+  if (!params.apt_repo?.trim()) {
+    echo('Skipping successful parameter upload because apt_repo is not set.')
+    return
+  }
+
+  withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
+    def bucketName = params.apt_repo.replace('s3://', '')
+    s3Upload(
+      bucket: bucketName,
+      path: "${params.release_label}/pipeline-params/tailor-image",
+      includePathPattern: latestFile,
+      workingDir: '.'
+    )
+    s3Upload(
+      bucket: bucketName,
+      path: "${params.release_label}/pipeline-params/tailor-image/history",
+      includePathPattern: historyFile,
+      workingDir: '.'
+    )
+  }
+}
+
 pipeline {
   agent none
 
@@ -276,6 +316,14 @@ pipeline {
   }
   // Slack bot to notify of any step failure
   post {
+    success {
+      script {
+        node('master') {
+          deleteDir()
+          uploadSuccessfulBuildParams()
+        }
+      }
+    }
     failure {
       script {
         node{
