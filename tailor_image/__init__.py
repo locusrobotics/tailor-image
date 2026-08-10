@@ -10,6 +10,7 @@ from datetime import datetime
 
 import boto3
 import botocore
+import click
 
 
 def find_package(package: str, path: str, env):
@@ -55,7 +56,7 @@ def wait_for_index(client, bucket, key, timeout=600):
 
             # If the object doesn't have any tags, create and get lock
             if not any(tag.get("Key") == "Lock" for tag in tags):
-                click.echo("fNo Lock tag found for {bucket}/{key}, creating tag and getting lock")
+                click.echo(f"No Lock tag found for {bucket}/{key}, creating tag and getting lock")
                 stop_checking = True
 
             # If the object has the Key tag and is set to true, wait until it's set to False or timeout
@@ -110,44 +111,6 @@ def merge_dicts(dict_a, dict_b, path=None):
         else:
             dict_a[key] = dict_b[key]
     return dict_a
-
-
-def parse_image_name(image_path: str) -> ImageEntry:
-    match = re.search(IMAGE_REGEX, image_path)
-    return ImageEntry(*match.groups())
-
-
-def list_s3_images(client, bucket, prefix) -> List[ImageEntry]:
-    """List S3 images."""
-    files = []
-
-    objects = client.list_objects_v2(Bucket=bucket, Prefix=prefix)
-    if "Contents" in objects:
-        for obj in objects["Contents"]:
-            files.append(parse_image_name(obj["Key"]))
-
-    return files
-
-
-def delete_s3_images(images: Iterable[ImageEntry], bucket: str, prefix: str):
-    """
-    Delete files from s3, including all versions if versioning is enabled.
-    """
-    s3_resource = boto3.resource("s3")
-    bucket = s3_resource.Bucket(bucket)
-
-    for image in images:
-        key = f"{prefix}/{image}"
-
-        click.echo(f"Deleting {image}")
-
-        # Delete all versions if versioning is enabled
-        object_versions = bucket.object_versions.filter(Prefix=key)
-        for version in object_versions:
-            version.delete()
-
-        # Also delete the current object (in case versioning is not enabled)
-        bucket.Object(key).delete()
 
 
 def lock_index_file(client, bucket, index_key):

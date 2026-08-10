@@ -19,6 +19,7 @@ from . import (
     run_command,
     source_file,
     invalidate_file_cloudfront,
+    read_index_file,
     unlock_index_file,
     write_index_file,
     wait_for_index,
@@ -225,9 +226,6 @@ def update_image_index(release_label, apt_repo, common_config, image_name):
             }
         }
     }
-
-    # Wait until index file is unlocked and lock it while we update it
-    wait_for_index(s3, apt_repo, index_key)
 
     # Wait until index file is unlocked and lock it while we update it
     wait_for_index(s3, apt_repo, index_key)
