@@ -29,7 +29,7 @@ SHELL ["/bin/bash", "-c"]
 RUN echo "APT refresh key=${APT_REFRESH_KEY}"
 
 # Apt network failure handling
-RUN printf 'Acquire::http::Timeout "10";\nAcquire::https::Timeout "10";\nAcquire::Retries "3";\n' \
+RUN printf 'Acquire::http::Timeout "10";\nAcquire::https::Timeout "10";\nAcquire::Retries "1";\n' \
       > /etc/apt/apt.conf.d/99-tailor-apt
 
 RUN printf '%s\t%s\n' \
@@ -39,13 +39,7 @@ RUN printf '%s\t%s\n' \
     sed -i \
         's|http://archive.ubuntu.com/ubuntu|mirror+file:/etc/apt/ubuntu-mirrors.list|' \
         /etc/apt/sources.list.d/ubuntu.sources && \
-    if ! timeout --kill-after=30s 3m \
-        apt-get update -o APT::Update::Error-Mode=any; then \
-        echo 'AWS Ubuntu mirror failed or timed out, switching to the default Ubuntu mirror' >&2; \
-        printf '%s\n' 'http://archive.ubuntu.com/ubuntu' > /etc/apt/ubuntu-mirrors.list; \
-        rm -rf /var/lib/apt/lists/*; \
-        apt-get update -o APT::Update::Error-Mode=any; \
-    fi && \
+    apt-get update && \
     apt-get install --no-install-recommends -y \
     locales \
     curl \
