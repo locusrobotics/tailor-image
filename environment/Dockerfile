@@ -96,10 +96,7 @@ COPY tailor-image tailor-image
 RUN pip3 install --break-system-packages -e tailor-image
 
 # Add package mirror
-RUN sed -i \
-        's|http://archive.ubuntu.com/ubuntu|http://us-east-1.ec2.archive.ubuntu.com/ubuntu|' \
-        /etc/apt/sources.list.d/ubuntu.sources && \
-    if ! timeout --kill-after=30s 3m \
+RUN if ! timeout --kill-after=30s 3m \
         apt-get update -o APT::Update::Error-Mode=any; then \
         echo 'AWS Ubuntu mirror failed or timed out, switching to the default Ubuntu mirror' >&2; \
         sed -i \
