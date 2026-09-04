@@ -41,9 +41,8 @@ RUN printf '%s\t%s\n' \
         /etc/apt/sources.list.d/ubuntu.sources && \
     if ! timeout --kill-after=30s 3m \
         apt-get update -o APT::Update::Error-Mode=any; then \
-        echo 'AWS Ubuntu mirror failed or timed out; switching to the default Ubuntu mirror' >&2; \
-        printf '%s\n' 'http://archive.ubuntu.com/ubuntu' \
-            > /etc/apt/ubuntu-mirrors.list; \
+        echo 'AWS Ubuntu mirror failed or timed out, switching to the default Ubuntu mirror' >&2; \
+        printf '%s\n' 'http://archive.ubuntu.com/ubuntu' > /etc/apt/ubuntu-mirrors.list; \
         rm -rf /var/lib/apt/lists/*; \
         apt-get update -o APT::Update::Error-Mode=any; \
     fi && \
