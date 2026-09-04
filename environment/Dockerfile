@@ -27,6 +27,11 @@ ENV DEBIAN_FRONTEND=noninteractive \
 SHELL ["/bin/bash", "-c"]
 
 RUN echo "APT refresh key=${APT_REFRESH_KEY}"
+
+# Apt configs
+RUN printf 'Acquire::http::Pipeline-Depth "0";\nAcquire::http::Timeout "10";\nAcquire::Retries "5";\n' \
+      > /etc/apt/apt.conf.d/99-tailor-apt
+
 RUN sed -i 's|http://archive.ubuntu.com/ubuntu|http://us-east-1.ec2.archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources && \
     apt-get update && apt-get install --no-install-recommends -y \
     locales \
