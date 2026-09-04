@@ -29,17 +29,21 @@ SHELL ["/bin/bash", "-c"]
 RUN echo "APT refresh key=${APT_REFRESH_KEY}"
 
 # Apt network failure handling
-RUN printf 'Acquire::http::Timeout "10";\nAcquire::https::Timeout "10";\nAcquire::Retries "1";\n' \
+RUN printf 'Acquire::http::Timeout "10";\nAcquire::https::Timeout "10";\nAcquire::Retries "3";\n' \
       > /etc/apt/apt.conf.d/99-tailor-apt
 
-RUN printf '%s\t%s\n' \
-    'http://us-east-1.ec2.archive.ubuntu.com/ubuntu' 'priority:1' \
-    'http://archive.ubuntu.com/ubuntu' 'priority:2' \
-        > /etc/apt/ubuntu-mirrors.list && \
-    sed -i \
-        's|http://archive.ubuntu.com/ubuntu|mirror+file:/etc/apt/ubuntu-mirrors.list|' \
+RUN sed -i \
+        's|http://archive.ubuntu.com/ubuntu|http://us-east-1.ec2.archive.ubuntu.com/ubuntu|' \
         /etc/apt/sources.list.d/ubuntu.sources && \
-    apt-get update && \
+    if ! timeout --kill-after=30s 3m \
+        apt-get update -o APT::Update::Error-Mode=any; then \
+        echo 'AWS Ubuntu mirror failed or timed out, switching to the default Ubuntu mirror' >&2; \
+        sed -i \
+            's|http://us-east-1.ec2.archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|' \
+            /etc/apt/sources.list.d/ubuntu.sources; \
+        rm -rf /var/lib/apt/lists/*; \
+        apt-get update -o APT::Update::Error-Mode=any; \
+    fi && \
     apt-get install --no-install-recommends -y \
     locales \
     curl \
@@ -92,7 +96,19 @@ COPY tailor-image tailor-image
 RUN pip3 install --break-system-packages -e tailor-image
 
 # Add package mirror
-RUN apt-get update && apt-get install --no-install-recommends -y apt-transport-https apt-transport-s3 && \
+RUN sed -i \
+        's|http://archive.ubuntu.com/ubuntu|http://us-east-1.ec2.archive.ubuntu.com/ubuntu|' \
+        /etc/apt/sources.list.d/ubuntu.sources && \
+    if ! timeout --kill-after=30s 3m \
+        apt-get update -o APT::Update::Error-Mode=any; then \
+        echo 'AWS Ubuntu mirror failed or timed out, switching to the default Ubuntu mirror' >&2; \
+        sed -i \
+            's|http://us-east-1.ec2.archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|' \
+            /etc/apt/sources.list.d/ubuntu.sources; \
+        rm -rf /var/lib/apt/lists/*; \
+        apt-get update -o APT::Update::Error-Mode=any; \
+    fi && \
+    apt-get install --no-install-recommends -y apt-transport-https apt-transport-s3 && \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 142D5F1683E1528B && \
     echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_LABEL}/ubuntu noble main" >> /etc/apt/sources.list && \
     echo "deb [arch=amd64] ${APT_REPO}/${RELEASE_LABEL}/ubuntu noble-mirror noble" >> /etc/apt/sources.list
