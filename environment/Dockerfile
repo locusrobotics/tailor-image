@@ -28,12 +28,19 @@ SHELL ["/bin/bash", "-c"]
 
 RUN echo "APT refresh key=${APT_REFRESH_KEY}"
 
-# Apt configs
-RUN printf 'Acquire::http::Pipeline-Depth "0";\nAcquire::http::Timeout "10";\nAcquire::Retries "5";\n' \
+# Apt network failure handling
+RUN printf 'Acquire::http::Timeout "10";\nAcquire::https::Timeout "10";\nAcquire::Retries "3";\n' \
       > /etc/apt/apt.conf.d/99-tailor-apt
 
-RUN sed -i 's|http://archive.ubuntu.com/ubuntu|http://us-east-1.ec2.archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources && \
-    apt-get update && apt-get install --no-install-recommends -y \
+RUN printf '%s\t%s\n' \
+    'http://us-east-1.ec2.archive.ubuntu.com/ubuntu' 'priority:1' \
+    'http://archive.ubuntu.com/ubuntu' 'priority:2' \
+        > /etc/apt/ubuntu-mirrors.list && \
+    sed -i \
+        's|http://archive.ubuntu.com/ubuntu|mirror+file:/etc/apt/ubuntu-mirrors.list|' \
+        /etc/apt/sources.list.d/ubuntu.sources && \
+    apt-get update -o APT::Update::Error-Mode=any && \
+    apt-get install --no-install-recommends -y \
     locales \
     curl \
     gnupg1 \
