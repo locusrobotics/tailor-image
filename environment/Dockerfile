@@ -39,7 +39,14 @@ RUN printf '%s\t%s\n' \
     sed -i \
         's|http://archive.ubuntu.com/ubuntu|mirror+file:/etc/apt/ubuntu-mirrors.list|' \
         /etc/apt/sources.list.d/ubuntu.sources && \
-    apt-get update -o APT::Update::Error-Mode=any && \
+    if ! timeout --kill-after=30s 3m \
+        apt-get update -o APT::Update::Error-Mode=any; then \
+        echo 'AWS Ubuntu mirror failed or timed out; switching to the default Ubuntu mirror' >&2; \
+        printf '%s\n' 'http://archive.ubuntu.com/ubuntu' \
+            > /etc/apt/ubuntu-mirrors.list; \
+        rm -rf /var/lib/apt/lists/*; \
+        apt-get update -o APT::Update::Error-Mode=any; \
+    fi && \
     apt-get install --no-install-recommends -y \
     locales \
     curl \
