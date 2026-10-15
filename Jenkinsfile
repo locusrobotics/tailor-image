@@ -216,58 +216,67 @@ pipeline {
         }
       }
       post {
+        always {
+          script {
+            node {
+              try {
+                def parent_image = docker.image(parentImage(params.release_label, params.docker_registry))
+                retry(params.retries as Integer) {
+                  docker.withRegistry(params.docker_registry, docker_credentials) { parent_image.pull() }
+                }
+                parent_image.inside() {
+                  unstash(name: 'rosdistro')
+                  try {
+                    sh("cleanup_images " +
+                      "--release-label ${params.release_label} " +
+                      "--apt-repo ${params.apt_repo - 's3://'} " +
+                      "--organization ${organization} " +
+                      "${params.days_to_keep ? '--days-to-keep ' + params.days_to_keep : ''} " +
+                      "${params.num_to_keep ? '--num-to-keep ' + params.num_to_keep : ''}"
+                    )
+                  } catch (e) {
+                    echo("Warning: cleanup_images failed, continuing to EC2 Packer cleanup: ${e}")
+                    currentBuild.result = 'UNSTABLE'
+                  }
+                  if (params.release_label == 'hotdog') {
+                    try {
+                      withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
+                        // Packer builders are always launched in the AMI recipe's fixed
+                        // aws_region (environment/image_recipes/ami/ami.json), not apt_region.
+                        sh("ec2_list_terminate_packer --days 1 --terminate --delete-related --yes --region us-east-1")
+                      }
+                    } catch (e) {
+                      echo("Warning: ec2_list_terminate_packer failed, continuing to CDN invalidation: ${e}")
+                      currentBuild.result = 'FAILURE'
+                    }
+                  }
+                }
+
+                // Invalidate the CDN here too (not in a separate stage), so a cached
+                // index pointing at images just deleted above doesn't linger if
+                // `Create images` failed and later stages get skipped.
+                common_config = readYaml(file: recipes_yaml)['common']
+                def distribution_id = common_config.find{ it.key == "cloudfront_distribution_id" }?.value
+                if (distribution_id) {
+                  withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
+                    cfInvalidate(distribution:distribution_id, paths:["/$params.release_label/images/index"])
+                  }
+                }
+              } finally {
+                library("tailor-meta@${params.tailor_meta}")
+                cleanDocker()
+                try {
+                  deleteDir()
+                } catch (e) {
+                  println e
+                }
+              }
+            }
+          }
+        }
         failure {
           script  {
             FAILED_STAGE = "Create images"
-          }
-        }
-      }
-    }
-
-    stage("Cleanup images") {
-      agent any
-      steps {
-        script {
-          try {
-            def parent_image = docker.image(parentImage(params.release_label, params.docker_registry))
-            retry(params.retries as Integer) {
-              docker.withRegistry(params.docker_registry, docker_credentials) { parent_image.pull() }
-            }
-            parent_image.inside() {
-              unstash(name: 'rosdistro')
-              sh("cleanup_images " +
-                "--release-label ${params.release_label} " +
-                "--apt-repo ${params.apt_repo - 's3://'} " +
-                "--organization ${organization} " +
-                "${params.days_to_keep ? '--days-to-keep ' + params.days_to_keep : ''} " +
-                "${params.num_to_keep ? '--num-to-keep ' + params.num_to_keep : ''}"
-              )
-            }
-          } finally {
-            library("tailor-meta@${params.tailor_meta}")
-            cleanDocker()
-            try {
-              deleteDir()
-            } catch (e) {
-              println e
-            }
-          }
-        }
-      }
-    }
-
-    stage("Invalidate CDN's cache for the index file") {
-      agent any
-      steps {
-        script {
-          unstash(name: 'rosdistro')
-          common_config = readYaml(file: recipes_yaml)['common']
-          def distribution_id = common_config.find{ it.key == "cloudfront_distribution_id" }?.value
-
-          if(distribution_id) {
-            withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
-              cfInvalidate(distribution:distribution_id, paths:["/$params.release_label/images/index"])
-            }
           }
         }
       }
