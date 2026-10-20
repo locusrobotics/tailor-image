@@ -214,12 +214,7 @@ pipeline {
           }
           // Keep going to the cleanup/invalidation stages even if an image build fails
           catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
-            try {
-              parallel(jobs)
-            } catch (e) {
-              FAILED_STAGE = "Create images"
-              throw e
-            }
+            parallel(jobs)
           }
         }
       }
