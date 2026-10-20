@@ -212,13 +212,28 @@ pipeline {
               }}]
             }
           }
-          parallel(jobs)
+          // Keep going to the cleanup/invalidation stages even if an image build fails
+          catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+            parallel(jobs)
+          }
         }
       }
       post {
-        always {
-          script {
-            node {
+        failure {
+          script  {
+            FAILED_STAGE = "Create images"
+          }
+        }
+      }
+    }
+
+    stage("Cleanup images") {
+      agent any
+      steps {
+        script {
+          // Don't let a cleanup failure skip the CDN invalidation stage
+          catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+            try {
               try {
                 def parent_image = docker.image(parentImage(params.release_label, params.docker_registry))
                 retry(params.retries as Integer) {
@@ -236,7 +251,7 @@ pipeline {
                     )
                   } catch (e) {
                     echo("Warning: cleanup_images failed, continuing to EC2 Packer cleanup: ${e}")
-                    currentBuild.result = 'UNSTABLE'
+                    unstable("cleanup_images failed: ${e}")
                   }
                   if (params.release_label == 'hotdog') {
                     try {
@@ -246,20 +261,10 @@ pipeline {
                         sh("ec2_list_terminate_packer --days 1 --terminate --delete-related --yes --region us-east-1")
                       }
                     } catch (e) {
-                      echo("Warning: ec2_list_terminate_packer failed, continuing to CDN invalidation: ${e}")
-                      currentBuild.result = 'FAILURE'
+                      echo("Warning: ec2_list_terminate_packer failed: ${e}")
+                      // Leaked EC2 instances must fail the build and trigger the failure notification
+                      throw e
                     }
-                  }
-                }
-
-                // Invalidate the CDN here too (not in a separate stage), so a cached
-                // index pointing at images just deleted above doesn't linger if
-                // `Create images` failed and later stages get skipped.
-                common_config = readYaml(file: recipes_yaml)['common']
-                def distribution_id = common_config.find{ it.key == "cloudfront_distribution_id" }?.value
-                if (distribution_id) {
-                  withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
-                    cfInvalidate(distribution:distribution_id, paths:["/$params.release_label/images/index"])
                   }
                 }
               } finally {
@@ -271,12 +276,32 @@ pipeline {
                   println e
                 }
               }
+            } catch (e) {
+              FAILED_STAGE = "Cleanup images"
+              throw e
             }
           }
         }
-        failure {
-          script  {
-            FAILED_STAGE = "Create images"
+      }
+    }
+
+    stage("Invalidate CDN's cache for the index file") {
+      agent any
+      steps {
+        script {
+          try {
+            unstash(name: 'rosdistro')
+            common_config = readYaml(file: recipes_yaml)['common']
+            def distribution_id = common_config.find{ it.key == "cloudfront_distribution_id" }?.value
+
+            if(distribution_id) {
+              withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'tailor_aws']]) {
+                cfInvalidate(distribution:distribution_id, paths:["/$params.release_label/images/index"])
+              }
+            }
+          } catch (e) {
+            FAILED_STAGE = "Invalidate CDN's cache for the index file"
+            throw e
           }
         }
       }
